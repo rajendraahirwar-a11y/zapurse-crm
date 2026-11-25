@@ -213,17 +213,80 @@ const App = {
   },
 
   async triggerManualSync() {
+    const { value: syncChoice } = await Swal.fire({
+      title: '🔄 Sync Zapurse Core API',
+      text: 'Fetch live MIS Report CSV directly from Zapurse fintech servers for all 6 services (ZAPAEPS, ZAPUPI, ZAPRECHARGE, RISLUPI, RISLDMT, RISLRECHARGE):',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: '⚡ Quick Sync (Last 30 Days)',
+      showDenyButton: true,
+      denyButtonText: '📅 Custom Date Range',
+      confirmButtonColor: '#0284c7',
+      denyButtonColor: '#475569'
+    });
+
+    let fromDate = '';
+    let toDate = '';
+
+    if (syncChoice === false) return; // Cancelled
+
+    if (syncChoice === undefined) {
+      // User clicked 'Custom Date Range' (Deny button)
+      const { value: formValues } = await Swal.fire({
+        title: 'Custom MIS Sync Dates',
+        html: `
+          <div class="space-y-3 text-left text-xs">
+            <div>
+              <label class="block font-semibold mb-1">From Date (DD-MM-YYYY)</label>
+              <input id="swal-sync-from" class="swal2-input !m-0 !w-full !text-xs !h-9" value="01-08-2026">
+            </div>
+            <div>
+              <label class="block font-semibold mb-1">To Date (DD-MM-YYYY)</label>
+              <input id="swal-sync-to" class="swal2-input !m-0 !w-full !text-xs !h-9" value="25-11-2026">
+            </div>
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Start Live Sync',
+        preConfirm: () => {
+          return {
+            from: document.getElementById('swal-sync-from').value.trim(),
+            to: document.getElementById('swal-sync-to').value.trim()
+          };
+        }
+      });
+      if (!formValues) return;
+      fromDate = formValues.from;
+      toDate = formValues.to;
+    }
+
     const icon = document.getElementById('sync-icon');
     if (icon) icon.classList.add('animate-spin');
 
+    Swal.fire({
+      title: 'Connecting to Zapurse MIS API...',
+      text: 'Fetching and processing CSV reports across all services...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
     try {
-      const res = await Api.get('syncExternalSalesAPI');
+      const res = await Api.get('syncExternalSalesAPI', { fromDate, toDate });
+      
       Swal.fire({
-        icon: 'success',
-        title: 'Synced!',
-        text: res.message || 'Data synchronized with Google Sheets.',
-        timer: 1500,
-        showConfirmButton: false
+        icon: res.success ? 'success' : 'warning',
+        title: 'API Sync Completed!',
+        html: `
+          <div class="text-xs text-left space-y-1">
+            <p><strong>Status:</strong> ${res.success ? 'Success' : 'Error'}</p>
+            <p><strong>Processed Rows:</strong> ${res.totalRowsProcessed || 0}</p>
+            <p><strong>New Transactions Added:</strong> ${res.recordsAdded || 0}</p>
+            <p><strong>Active Clients:</strong> ${res.clientsCount || 0}</p>
+          </div>
+        `
       });
       this.navigate(this.currentView);
     } catch (err) {

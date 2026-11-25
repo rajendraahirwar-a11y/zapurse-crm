@@ -10,14 +10,14 @@ const Config = {
   STORAGE_KEY_USER: 'zapurse_crm_active_user',
   STORAGE_KEY_DEMO_MODE: 'zapurse_crm_demo_mode',
 
-  // Default Services Catalog
+  // Default Services Catalog (Exact Zapurse API Service Types)
   DEFAULT_SERVICES: [
-    'ZAP AEPS',
-    'ZAPRECHARGE',
+    'ZAPAEPS',
     'ZAPUPI',
-    'RISLDMT',
+    'ZAPRECHARGE',
     'RISLUPI',
-    'RISL RECHARGE'
+    'RISLDMT',
+    'RISLRECHARGE'
   ],
 
   // Default Dynamic Questions for Calling Script

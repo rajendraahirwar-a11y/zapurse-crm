@@ -109,8 +109,8 @@ const Api = {
       users: [
         { userId: 'USR001', name: 'Admin Master', username: 'admin', password: 'admin123', role: 'Admin', allowedServices: ['ALL'], allowedModules: ['ALL'], status: 'Active' },
         { userId: 'USR002', name: 'Rahul Sharma', username: 'rahul', password: 'rahul123', role: 'Manager', allowedServices: ['ALL'], allowedModules: ['DASHBOARD', 'SERVICES', 'CALLING', 'REPORTS'], status: 'Active' },
-        { userId: 'USR003', name: 'Pooja Verma', username: 'pooja', password: 'pooja123', role: 'Caller', allowedServices: ['ZAP AEPS', 'ZAPUPI', 'ZAPRECHARGE'], allowedModules: ['DASHBOARD', 'CALLING'], status: 'Active' },
-        { userId: 'USR004', name: 'Amit Patel', username: 'amit', password: 'amit123', role: 'Caller', allowedServices: ['RISLDMT', 'RISLUPI', 'RISL RECHARGE'], allowedModules: ['DASHBOARD', 'CALLING'], status: 'Active' }
+        { userId: 'USR003', name: 'Pooja Verma', username: 'pooja', password: 'pooja123', role: 'Caller', allowedServices: ['ZAPAEPS', 'ZAPUPI', 'ZAPRECHARGE'], allowedModules: ['DASHBOARD', 'CALLING'], status: 'Active' },
+        { userId: 'USR004', name: 'Amit Patel', username: 'amit', password: 'amit123', role: 'Caller', allowedServices: ['RISLDMT', 'RISLUPI', 'RISLRECHARGE'], allowedModules: ['DASHBOARD', 'CALLING'], status: 'Active' }
       ],
       config: {
         maxFollowupLimit: 5,
@@ -119,25 +119,31 @@ const Api = {
         dynamicQuestions: [...Config.DEFAULT_QUESTIONS]
       },
       clients: [
-        { clientId: 'CL1001', clientName: 'Jai Mahaveer Telecom', mobile: '9829012345', cityState: 'Jaipur, Rajasthan', assignedUser: 'pooja', lastTxnDate: daysAgo(1), yearlySales: 1250000, followupsCount: 1, status: 'Active', primaryService: 'ZAP AEPS' },
+        { clientId: 'CL1001', clientName: 'Jai Mahaveer Telecom', mobile: '9829012345', cityState: 'Jaipur, Rajasthan', assignedUser: 'pooja', lastTxnDate: daysAgo(1), yearlySales: 1250000, followupsCount: 1, status: 'Active', primaryService: 'ZAPAEPS' },
         { clientId: 'CL1002', clientName: 'Krishna Digital Point', mobile: '9829023456', cityState: 'Kota, Rajasthan', assignedUser: 'pooja', lastTxnDate: daysAgo(5), yearlySales: 45000, followupsCount: 2, status: 'Active', primaryService: 'ZAPUPI' },
         { clientId: 'CL1003', clientName: 'Rathore E-Mitra Kendra', mobile: '9829034567', cityState: 'Jodhpur, Rajasthan', assignedUser: 'amit', lastTxnDate: daysAgo(9), yearlySales: 23000, followupsCount: 3, status: 'Active', primaryService: 'RISLDMT' },
         { clientId: 'CL1004', clientName: 'Balaji Multi Services', mobile: '9829045678', cityState: 'Udaipur, Rajasthan', assignedUser: 'amit', lastTxnDate: daysAgo(16), yearlySales: 12000, followupsCount: 4, status: 'Active', primaryService: 'RISLUPI' },
         { clientId: 'CL1005', clientName: 'Sharma Communication', mobile: '9829056789', cityState: 'Ajmer, Rajasthan', assignedUser: 'pooja', lastTxnDate: daysAgo(35), yearlySales: 89000, followupsCount: 5, status: 'Locked', primaryService: 'ZAPRECHARGE' },
-        { clientId: 'CL1006', clientName: 'Gupta Online Center', mobile: '9829067890', cityState: 'Bikaner, Rajasthan', assignedUser: 'amit', lastTxnDate: daysAgo(85), yearlySales: 15000, followupsCount: 0, status: 'Active', primaryService: 'RISL RECHARGE' },
-        { clientId: 'CL1007', clientName: 'Verma Tech Solutions', mobile: '9829078901', cityState: 'Alwar, Rajasthan', assignedUser: 'pooja', lastTxnDate: daysAgo(3), yearlySales: 340000, followupsCount: 1, status: 'Active', primaryService: 'ZAP AEPS' },
+        { clientId: 'CL1006', clientName: 'Gupta Online Center', mobile: '9829067890', cityState: 'Bikaner, Rajasthan', assignedUser: 'amit', lastTxnDate: daysAgo(85), yearlySales: 15000, followupsCount: 0, status: 'Active', primaryService: 'RISLRECHARGE' },
+        { clientId: 'CL1007', clientName: 'Verma Tech Solutions', mobile: '9829078901', cityState: 'Alwar, Rajasthan', assignedUser: 'pooja', lastTxnDate: daysAgo(3), yearlySales: 340000, followupsCount: 1, status: 'Active', primaryService: 'ZAPAEPS' },
         { clientId: 'CL1008', clientName: 'Shree Ram Cyber Cafe', mobile: '9829089012', cityState: 'Sikar, Rajasthan', assignedUser: 'amit', lastTxnDate: daysAgo(12), yearlySales: 48000, followupsCount: 2, status: 'Active', primaryService: 'RISLDMT' },
         { clientId: 'CL1009', clientName: 'Aman Pay Point', mobile: '9829090123', cityState: 'Bhilwara, Rajasthan', assignedUser: 'pooja', lastTxnDate: daysAgo(22), yearlySales: 62000, followupsCount: 1, status: 'Active', primaryService: 'ZAPUPI' },
         { clientId: 'CL1010', clientName: 'Apex Banking Mitra', mobile: '9829091234', cityState: 'Sri Ganganagar, Raj', assignedUser: 'amit', lastTxnDate: daysAgo(0), yearlySales: 780000, followupsCount: 0, status: 'Active', primaryService: 'RISLUPI' }
       ],
       sales: [
-        { txnId: 'TXN9001', date: `${curYear}-01-15`, clientId: 'CL1001', clientName: 'Jai Mahaveer Telecom', mobile: '9829012345', serviceName: 'ZAP AEPS', txnCount: 140, volume: 450000, commission: 2250 },
-        { txnId: 'TXN9002', date: `${curYear}-02-18`, clientId: 'CL1007', clientName: 'Verma Tech Solutions', mobile: '9829078901', serviceName: 'ZAP AEPS', txnCount: 85, volume: 230000, commission: 1150 },
+        { txnId: 'TXN9001', date: `${curYear}-01-15`, clientId: 'CL1001', clientName: 'Jai Mahaveer Telecom', mobile: '9829012345', serviceName: 'ZAPAEPS', txnCount: 140, volume: 450000, commission: 2250 },
+        { txnId: 'TXN9002', date: `${curYear}-02-18`, clientId: 'CL1007', clientName: 'Verma Tech Solutions', mobile: '9829078901', serviceName: 'ZAPAEPS', txnCount: 85, volume: 230000, commission: 1150 },
         { txnId: 'TXN9003', date: `${curYear}-03-10`, clientId: 'CL1002', clientName: 'Krishna Digital Point', mobile: '9829023456', serviceName: 'ZAPUPI', txnCount: 210, volume: 180000, commission: 900 },
         { txnId: 'TXN9004', date: `${curYear}-04-20`, clientId: 'CL1003', clientName: 'Rathore E-Mitra Kendra', mobile: '9829034567', serviceName: 'RISLDMT', txnCount: 65, volume: 320000, commission: 1600 },
         { txnId: 'TXN9005', date: `${curYear}-05-14`, clientId: 'CL1010', clientName: 'Apex Banking Mitra', mobile: '9829091234', serviceName: 'RISLUPI', txnCount: 320, volume: 490000, commission: 2450 },
         { txnId: 'TXN9006', date: `${curYear}-06-25`, clientId: 'CL1004', clientName: 'Balaji Multi Services', mobile: '9829045678', serviceName: 'RISLUPI', txnCount: 45, volume: 95000, commission: 475 },
         { txnId: 'TXN9007', date: `${curYear}-07-08`, clientId: 'CL1005', clientName: 'Sharma Communication', mobile: '9829056789', serviceName: 'ZAPRECHARGE', txnCount: 350, volume: 75000, commission: 1875 },
+        { txnId: 'TXN9008', date: `${curYear}-08-19`, clientId: 'CL1009', clientName: 'Aman Pay Point', mobile: '9829090123', serviceName: 'ZAPUPI', txnCount: 180, volume: 220000, commission: 1100 },
+        { txnId: 'TXN9009', date: `${curYear}-09-11`, clientId: 'CL1008', clientName: 'Shree Ram Cyber Cafe', mobile: '9829089012', serviceName: 'RISLDMT', txnCount: 90, volume: 190000, commission: 950 },
+        { txnId: 'TXN9010', date: `${curYear}-10-05`, clientId: 'CL1001', clientName: 'Jai Mahaveer Telecom', mobile: '9829012345', serviceName: 'ZAPAEPS', txnCount: 240, volume: 720000, commission: 3600 },
+        { txnId: 'TXN9011', date: `${curYear}-11-01`, clientId: 'CL1006', clientName: 'Gupta Online Center', mobile: '9829067890', serviceName: 'RISLRECHARGE', txnCount: 110, volume: 42000, commission: 1050 },
+        { txnId: 'TXN9012', date: `${curYear}-11-20`, clientId: 'CL1010', clientName: 'Apex Banking Mitra', mobile: '9829091234', serviceName: 'RISLUPI', txnCount: 195, volume: 290000, commission: 1450 }
+      ],
         { txnId: 'TXN9008', date: `${curYear}-08-19`, clientId: 'CL1009', clientName: 'Aman Pay Point', mobile: '9829090123', serviceName: 'ZAPUPI', txnCount: 180, volume: 220000, commission: 1100 },
         { txnId: 'TXN9009', date: `${curYear}-09-11`, clientId: 'CL1008', clientName: 'Shree Ram Cyber Cafe', mobile: '9829089012', serviceName: 'RISLDMT', txnCount: 90, volume: 190000, commission: 950 },
         { txnId: 'TXN9010', date: `${curYear}-10-05`, clientId: 'CL1001', clientName: 'Jai Mahaveer Telecom', mobile: '9829012345', serviceName: 'ZAP AEPS', txnCount: 240, volume: 720000, commission: 3600 },

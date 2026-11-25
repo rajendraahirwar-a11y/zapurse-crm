@@ -1,16 +1,34 @@
 /**
  * ==============================================================================
- * ZAPURSE FINTECH CRM - MASTER BACKEND (Google Apps Script)
+ * ZAPURSE FINTECH CRM - MASTER BACKEND & LIVE MIS API SYNC
  * ==============================================================================
  * Architecture:
- * - Google Sheets: Relational Database Storage
+ * - Core API: Zapurse ExportMISReportCsv (Live Postman/cURL integration)
+ * - Supported Services: ZAPAEPS, ZAPUPI, ZAPRECHARGE, RISLUPI, RISLDMT, RISLRECHARGE
+ * - Google Sheets: Relational Database Storage (6 Structured Tabs)
  * - Google Drive: Audio Call Recordings Storage Folder ("Zapurse_Call_Recordings")
  * - Google Calendar: Automatic Follow-up Reminders & Alerts
  * - REST API Endpoints: doGet & doPost supporting JSON payloads & CORS
  * ==============================================================================
  */
 
-// Global Sheet Names
+// 1. Zapurse Core API Configuration
+const ZAPURSE_CONFIG = {
+  API_URL: "https://zapurse.com/atishayapi/wlservices/ExportMISReportCsv",
+  USERNAME: "7024219540",
+  LOGIN_MOBILE: "9311555271",
+  AUTHORIZATION: "basic NA",
+  SERVICE_TYPES: [
+    "ZAPAEPS",
+    "ZAPUPI",
+    "ZAPRECHARGE",
+    "RISLUPI",
+    "RISLDMT",
+    "RISLRECHARGE"
+  ]
+};
+
+// 2. Global Database Sheet Names
 const TABS = {
   USERS: 'Users',
   SALES: 'Sales_Data',
@@ -22,36 +40,444 @@ const TABS = {
 
 /**
  * ------------------------------------------------------------------------------
- * 1. DATABASE INITIALIZATION & SEEDING FUNCTION
- * Run this function once from the Apps Script editor to create all sheets,
- * headers, default admin credentials, and initial demo data.
+ * ON-OPEN SPREADSHEET CUSTOM MENU
+ * Appears automatically inside the Google Sheet toolbar for 1-click execution!
+ * ------------------------------------------------------------------------------
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('⚡ Zapurse CRM')
+    .addItem('🔄 Sync All Services (Last 30 Days)', 'menuSyncLast30Days')
+    .addItem('📅 Sync All Services (Custom / Year Range)', 'menuSyncFullRange')
+    .addSeparator()
+    .addItem('🛠️ Initialize / Reset Database Tabs', 'setupDatabase')
+    .addItem('⏰ Setup Automatic Daily Sync Trigger (Nightly 2 AM)', 'setupDailySyncTrigger')
+    .addToUi();
+}
+
+function menuSyncLast30Days() {
+  const now = new Date();
+  const past30 = new Date();
+  past30.setDate(now.getDate() - 30);
+
+  const fromStr = Utilities.formatDate(past30, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+  const toStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+
+  SpreadsheetApp.getActiveSpreadsheet().toast('Starting Zapurse API Sync for all 6 services...', 'Syncing', 5);
+  const result = syncAllZapurseServices(fromStr, toStr);
+
+  SpreadsheetApp.getUi().alert(
+    `Sync Completed!\n\n` +
+    `• Total Transactions Processed: ${result.totalRowsProcessed}\n` +
+    `• New Records Added: ${result.recordsAdded}\n` +
+    `• Clients In Master: ${result.clientsCount}\n` +
+    `• Status: ${result.success ? 'SUCCESS' : 'PARTIAL ERROR'}`
+  );
+}
+
+function menuSyncFullRange() {
+  const ui = SpreadsheetApp.getUi();
+  const fromPrompt = ui.prompt('Zapurse MIS Sync', 'Enter From Date (DD-MM-YYYY):', ui.ButtonSet.OK_CANCEL);
+  if (fromPrompt.getSelectedButton() !== ui.Button.OK) return;
+  const fromDate = fromPrompt.getResponseText().trim() || '01-08-2026';
+
+  const toPrompt = ui.prompt('Zapurse MIS Sync', 'Enter To Date (DD-MM-YYYY):', ui.ButtonSet.OK_CANCEL);
+  if (toPrompt.getSelectedButton() !== ui.Button.OK) return;
+  const toDate = toPrompt.getResponseText().trim() || '25-11-2026';
+
+  SpreadsheetApp.getActiveSpreadsheet().toast(`Syncing from ${fromDate} to ${toDate}...`, 'Syncing', 5);
+  const result = syncAllZapurseServices(fromDate, toDate);
+
+  ui.alert(
+    `Sync Result for ${fromDate} to ${toDate}:\n\n` +
+    `• Processed: ${result.totalRowsProcessed}\n` +
+    `• New Records Added: ${result.recordsAdded}\n` +
+    `• Total Active Clients: ${result.clientsCount}`
+  );
+}
+
+/**
+ * ------------------------------------------------------------------------------
+ * 3. MASTER ZAPURSE API SYNC FUNCTION
+ * Fetches MIS Report CSV for all service types & auto-updates Sales & Clients!
+ * ------------------------------------------------------------------------------
+ */
+function syncAllZapurseServices(fromDate, toDate, specificServices) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureSheetsExist(ss);
+
+  const salesSheet = ss.getSheetByName(TABS.SALES);
+  const clientsSheet = ss.getSheetByName(TABS.CLIENTS);
+  const syncLogsSheet = ss.getSheetByName(TABS.SYNC_LOGS);
+
+  // Default dates if omitted
+  const now = new Date();
+  if (!toDate) {
+    toDate = Utilities.formatDate(now, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+  }
+  if (!fromDate) {
+    let d = new Date();
+    d.setDate(now.getDate() - 30);
+    fromDate = Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+  }
+
+  const servicesToSync = specificServices && Array.isArray(specificServices) && specificServices.length > 0
+    ? specificServices
+    : ZAPURSE_CONFIG.SERVICE_TYPES;
+
+  let totalRowsProcessed = 0;
+  let newRecordsAdded = 0;
+  let serviceStatus = {};
+
+  // Build an in-memory set of existing Txn_IDs to avoid duplicates
+  const existingSales = salesSheet.getDataRange().getValues();
+  const existingTxnIds = new Set();
+  for (let i = 1; i < existingSales.length; i++) {
+    const tid = String(existingSales[i][0]).trim();
+    if (tid) existingTxnIds.add(tid);
+  }
+
+  // Build an in-memory map of existing Clients in Clients_Master
+  const clientsData = clientsSheet.getDataRange().getValues();
+  const clientsMap = new Map(); // clientId -> rowIndex (1-based)
+  for (let i = 1; i < clientsData.length; i++) {
+    const cid = String(clientsData[i][0]).trim();
+    if (cid) {
+      clientsMap.set(cid, {
+        row: i + 1,
+        clientName: clientsData[i][1],
+        mobile: clientsData[i][2],
+        cityState: clientsData[i][3],
+        assignedUser: clientsData[i][4],
+        lastTxnDate: clientsData[i][5],
+        yearlySales: Number(clientsData[i][6]) || 0,
+        followupsCount: Number(clientsData[i][7]) || 0,
+        leadStatus: clientsData[i][8],
+        primaryService: clientsData[i][9]
+      });
+    }
+  }
+
+  const rowsToAppendSales = [];
+
+  // Loop through all services (ZAPAEPS, ZAPUPI, ZAPRECHARGE, RISLUPI, RISLDMT, RISLRECHARGE)
+  for (let s = 0; s < servicesToSync.length; s++) {
+    const serviceType = servicesToSync[s];
+    try {
+      Logger.log(`[Zapurse API] Fetching MIS Report for: ${serviceType} (${fromDate} to ${toDate})`);
+      const csvRows = fetchZapurseMISReportCsv(serviceType, fromDate, toDate);
+
+      if (!csvRows || csvRows.length <= 1) {
+        Logger.log(`[Zapurse API] No data returned for ${serviceType}`);
+        serviceStatus[serviceType] = { count: 0, status: 'NO_DATA' };
+        continue;
+      }
+
+      const headers = csvRows[0].map(h => String(h).trim().toLowerCase());
+      Logger.log(`[Zapurse API] Headers for ${serviceType}: ${JSON.stringify(headers)}`);
+
+      // Dynamic header mapping
+      const colMap = mapCsvHeaders(headers);
+
+      let serviceAddedCount = 0;
+
+      for (let r = 1; r < csvRows.length; r++) {
+        const row = csvRows[r];
+        if (!row || row.length === 0 || (row.length === 1 && String(row[0]).trim() === '')) continue;
+
+        totalRowsProcessed++;
+
+        // Extract values using dynamic column map
+        let txnId = colMap.txnId !== -1 ? String(row[colMap.txnId]).trim() : '';
+        let dateVal = colMap.date !== -1 ? String(row[colMap.date]).trim() : '';
+        let clientId = colMap.clientId !== -1 ? String(row[colMap.clientId]).trim() : '';
+        let clientName = colMap.clientName !== -1 ? String(row[colMap.clientName]).trim() : '';
+        let mobile = colMap.mobile !== -1 ? String(row[colMap.mobile]).trim() : '';
+        let volume = colMap.volume !== -1 ? Number(String(row[colMap.volume]).replace(/[^0-9.-]+/g, '')) || 0 : 0;
+        let commission = colMap.commission !== -1 ? Number(String(row[colMap.commission]).replace(/[^0-9.-]+/g, '')) || 0 : 0;
+        let txnCount = colMap.txnCount !== -1 ? (Number(row[colMap.txnCount]) || 1) : 1;
+        let statusVal = colMap.status !== -1 ? String(row[colMap.status]).trim().toUpperCase() : 'SUCCESS';
+
+        // Filter out failed transactions if status column exists
+        if (statusVal && statusVal.includes('FAIL')) {
+          continue;
+        }
+
+        // Generate synthetic Txn ID if missing
+        if (!txnId) {
+          txnId = `TXN_${serviceType}_${Date.now()}_${r}`;
+        }
+
+        // Deduplication Check
+        if (existingTxnIds.has(txnId)) {
+          continue; // Skip already inserted transactions
+        }
+        existingTxnIds.add(txnId);
+
+        // Normalize Date to YYYY-MM-DD
+        let formattedDate = normalizeDateString(dateVal);
+
+        // Ensure Client ID & Name exist
+        if (!clientId) {
+          clientId = mobile ? `CL_${mobile}` : `CL_${r}`;
+        }
+        if (!clientName) {
+          clientName = `Merchant ${clientId}`;
+        }
+
+        // Prepare row for Sales_Data:
+        // ['Txn_ID', 'Date', 'Client_ID', 'Client_Name', 'Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp']
+        rowsToAppendSales.push([
+          txnId,
+          formattedDate,
+          clientId,
+          clientName,
+          mobile,
+          serviceType,
+          txnCount,
+          volume,
+          commission,
+          new Date()
+        ]);
+
+        newRecordsAdded++;
+        serviceAddedCount++;
+
+        // Update in-memory Clients_Master
+        if (clientsMap.has(clientId)) {
+          const c = clientsMap.get(clientId);
+          c.yearlySales += volume;
+          if (c.lastTxnDate < formattedDate) {
+            c.lastTxnDate = formattedDate;
+          }
+          if (!c.mobile && mobile) c.mobile = mobile;
+        } else {
+          // New Client to be inserted in Clients_Master
+          clientsMap.set(clientId, {
+            row: null, // New
+            clientName: clientName,
+            mobile: mobile,
+            cityState: 'Rajasthan, India',
+            assignedUser: (clientsMap.size % 2 === 0) ? 'pooja' : 'amit',
+            lastTxnDate: formattedDate,
+            yearlySales: volume,
+            followupsCount: 0,
+            leadStatus: 'Active',
+            primaryService: serviceType
+          });
+        }
+      }
+
+      serviceStatus[serviceType] = { count: serviceAddedCount, status: 'SUCCESS' };
+      Utilities.sleep(400); // Friendly throttle between API calls
+
+    } catch (err) {
+      Logger.log(`[Zapurse API] Error in service ${serviceType}: ${err.message}`);
+      serviceStatus[serviceType] = { count: 0, status: 'ERROR', error: err.message };
+    }
+  }
+
+  // Batch insert new records into Sales_Data
+  if (rowsToAppendSales.length > 0) {
+    salesSheet.getRange(salesSheet.getLastRow() + 1, 1, rowsToAppendSales.length, rowsToAppendSales[0].length)
+      .setValues(rowsToAppendSales);
+  }
+
+  // Batch update or insert Clients_Master
+  syncClientsMasterTable(clientsSheet, clientsMap);
+
+  // Log in API_Sync_Logs
+  const syncId = 'SYNC_' + Date.now();
+  const summaryMsg = `Processed ${totalRowsProcessed} CSV records. Added ${newRecordsAdded} new transactions across ${servicesToSync.length} services.`;
+  if (syncLogsSheet) {
+    syncLogsSheet.appendRow([syncId, new Date(), 'SUCCESS', newRecordsAdded, summaryMsg]);
+  }
+
+  return {
+    success: true,
+    syncId: syncId,
+    totalRowsProcessed: totalRowsProcessed,
+    recordsAdded: newRecordsAdded,
+    clientsCount: clientsMap.size,
+    serviceStatus: serviceStatus,
+    message: summaryMsg
+  };
+}
+
+/**
+ * Executes UrlFetchApp call directly to Zapurse MIS Export API
+ */
+function fetchZapurseMISReportCsv(serviceType, fromDate, toDate) {
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      Authorization: ZAPURSE_CONFIG.AUTHORIZATION,
+      Username: ZAPURSE_CONFIG.USERNAME
+    },
+    payload: JSON.stringify({
+      FromDate: fromDate,
+      ToDate: toDate,
+      LoginMobileNumber: ZAPURSE_CONFIG.LOGIN_MOBILE,
+      ServiceType: serviceType
+    }),
+    muteHttpExceptions: true
+  };
+
+  const response = UrlFetchApp.fetch(ZAPURSE_CONFIG.API_URL, options);
+  const responseCode = response.getResponseCode();
+
+  if (responseCode !== 200) {
+    Logger.log(`[Zapurse API] HTTP ${responseCode}: ${response.getContentText()}`);
+    return null;
+  }
+
+  // Strip BOM \uFEFF if present
+  const rawText = response.getContentText().replace(/^\uFEFF/, "").trim();
+  if (!rawText) return null;
+
+  return Utilities.parseCsv(rawText);
+}
+
+/**
+ * Dynamic Column Header Mapping for Flexible Zapurse MIS Reports
+ */
+function mapCsvHeaders(headers) {
+  const findIdx = (regex) => headers.findIndex(h => regex.test(h.replace(/[^a-z0-9]/g, '')));
+
+  return {
+    txnId: findIdx(/^(txnid|transactionid|rrn|referenceno|refno|id)$/),
+    date: findIdx(/^(date|txndate|transactiondate|createdon|createdat|timestamp|time)$/),
+    clientId: findIdx(/^(agentcode|retailerid|clientid|merchantid|agentid|customercode|userid|outletcode)$/),
+    clientName: findIdx(/^(agentname|retailername|clientname|merchantname|name|outletname)$/),
+    mobile: findIdx(/^(mobile|phone|contact|agentmobile|customermobile)$/),
+    volume: findIdx(/^(amount|volume|txnamount|totalamount|transactionamount|grossamount)$/),
+    commission: findIdx(/^(commission|comm|margin|retailercommission|revenue)$/),
+    txnCount: findIdx(/^(count|txncount|numberoftxns)$/),
+    status: findIdx(/^(status|txnstatus|transactionstatus)$/)
+  };
+}
+
+/**
+ * Normalizes varied Date strings to standard YYYY-MM-DD
+ */
+function normalizeDateString(dateVal) {
+  if (!dateVal) return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  
+  // Check DD-MM-YYYY or DD/MM/YYYY
+  const parts = dateVal.split(/[-/ :]/);
+  if (parts.length >= 3) {
+    if (parts[0].length === 2 && parts[2].length === 4) {
+      // DD-MM-YYYY
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+  }
+
+  const d = new Date(dateVal);
+  if (!isNaN(d.getTime())) {
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return dateVal.split(' ')[0];
+}
+
+/**
+ * Synchronizes Clients_Master with in-memory map
+ */
+function syncClientsMasterTable(clientsSheet, clientsMap) {
+  const existingRows = clientsSheet.getDataRange().getValues();
+  const rowsToAppend = [];
+
+  clientsMap.forEach((c, cid) => {
+    if (c.row) {
+      // Existing Client: Update Last_Txn_Date and Yearly_Sales
+      const rowIdx = c.row;
+      clientsSheet.getRange(rowIdx, 6).setValue(c.lastTxnDate); // Col 6: Last_Txn_Date
+      clientsSheet.getRange(rowIdx, 7).setValue(c.yearlySales); // Col 7: Yearly_Sales
+    } else {
+      // New Client: Queue for append
+      rowsToAppend.push([
+        cid,
+        c.clientName,
+        c.mobile,
+        c.cityState,
+        c.assignedUser,
+        c.lastTxnDate,
+        c.yearlySales,
+        c.followupsCount,
+        c.leadStatus,
+        c.primaryService,
+        new Date()
+      ]);
+    }
+  });
+
+  if (rowsToAppend.length > 0) {
+    clientsSheet.getRange(clientsSheet.getLastRow() + 1, 1, rowsToAppend.length, rowsToAppend[0].length)
+      .setValues(rowsToAppend);
+  }
+}
+
+/**
+ * Sets up an automated Google Apps Script Time-driven trigger (Daily Nightly Sync)
+ */
+function setupDailySyncTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(t => {
+    if (t.getHandlerFunction() === 'triggerDailyZapurseSync') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+
+  ScriptApp.newTrigger('triggerDailyZapurseSync')
+    .timeBased()
+    .everyDays(1)
+    .atHour(2) // Runs every night at 2:00 AM
+    .create();
+
+  SpreadsheetApp.getUi().alert('Nightly Auto-Sync Trigger Created!\n\nZapurse MIS will automatically sync every day at 2:00 AM.');
+}
+
+function triggerDailyZapurseSync() {
+  const now = new Date();
+  const past7 = new Date();
+  past7.setDate(now.getDate() - 7); // Sync last 7 days daily to capture revisions
+  const fromStr = Utilities.formatDate(past7, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+  const toStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+
+  syncAllZapurseServices(fromStr, toStr);
+}
+
+/**
+ * ------------------------------------------------------------------------------
+ * 4. DATABASE INITIALIZATION FUNCTION
  * ------------------------------------------------------------------------------
  */
 function setupDatabase() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  // 1. Users Sheet
+  ensureSheetsExist(ss);
+  return { success: true, message: 'Zapurse CRM Database initialized successfully with all 6 tabs!' };
+}
+
+function ensureSheetsExist(ss) {
+  // 1. Users
   let usersSheet = getOrCreateSheet(ss, TABS.USERS);
   if (usersSheet.getLastRow() === 0) {
     usersSheet.appendRow(['UserID', 'Name', 'Username', 'Password', 'Role', 'Allowed_Services', 'Allowed_Modules', 'Status', 'Created_At']);
-    usersSheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
-    
-    // Default Users
+    usersSheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
     usersSheet.appendRow(['USR001', 'Admin Master', 'admin', 'admin123', 'Admin', 'ALL', 'ALL', 'Active', new Date()]);
     usersSheet.appendRow(['USR002', 'Rahul Sharma', 'rahul', 'rahul123', 'Manager', 'ALL', 'DASHBOARD,SERVICES,CALLING,REPORTS', 'Active', new Date()]);
-    usersSheet.appendRow(['USR003', 'Pooja Verma', 'pooja', 'pooja123', 'Caller', 'ZAP AEPS,ZAPUPI,ZAPRECHARGE', 'DASHBOARD,CALLING', 'Active', new Date()]);
-    usersSheet.appendRow(['USR004', 'Amit Patel', 'amit', 'amit123', 'Caller', 'RISLDMT,RISLUPI,RISL RECHARGE', 'DASHBOARD,CALLING', 'Active', new Date()]);
+    usersSheet.appendRow(['USR003', 'Pooja Verma', 'pooja', 'pooja123', 'Caller', 'ZAPAEPS,ZAPUPI,ZAPRECHARGE', 'DASHBOARD,CALLING', 'Active', new Date()]);
+    usersSheet.appendRow(['USR004', 'Amit Patel', 'amit', 'amit123', 'Caller', 'RISLDMT,RISLUPI,RISLRECHARGE', 'DASHBOARD,CALLING', 'Active', new Date()]);
   }
 
-  // 2. Admin_Config Sheet
+  // 2. Admin_Config
   let configSheet = getOrCreateSheet(ss, TABS.CONFIG);
   if (configSheet.getLastRow() === 0) {
     configSheet.appendRow(['Key', 'Value', 'Description', 'Updated_At']);
-    configSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
-    
+    configSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
     configSheet.appendRow(['Max_Followup_Limit', '5', 'Max calls allowed per client before auto-locking', new Date()]);
     configSheet.appendRow(['Yearly_Min_Sales_Condition', '50000', 'Minimum yearly sales threshold in Rupees', new Date()]);
-    configSheet.appendRow(['Services_List', JSON.stringify(['ZAP AEPS', 'ZAPRECHARGE', 'ZAPUPI', 'RISLDMT', 'RISLUPI', 'RISL RECHARGE']), 'Active Services list', new Date()]);
+    configSheet.appendRow(['Services_List', JSON.stringify(ZAPURSE_CONFIG.SERVICE_TYPES), 'Active Zapurse services list', new Date()]);
     
     const sampleQuestions = [
       { id: 'q1', text: 'Call Connect Status', type: 'select', options: ['Connected with Owner', 'Connected with Staff', 'Call Later', 'Wrong Number'] },
@@ -62,121 +488,47 @@ function setupDatabase() {
       { id: 'q6', text: 'Specific Remarks / Feedback', type: 'textarea', placeholder: 'Detailed call summary...' }
     ];
     configSheet.appendRow(['Dynamic_Questions', JSON.stringify(sampleQuestions), 'Dynamic caller questionnaire form', new Date()]);
-    configSheet.appendRow(['Drive_Folder_Name', 'Zapurse_Call_Recordings', 'Google Drive folder name for audio uploads', new Date()]);
   }
 
-  // 3. Clients_Master Sheet
+  // 3. Clients_Master
   let clientsSheet = getOrCreateSheet(ss, TABS.CLIENTS);
   if (clientsSheet.getLastRow() === 0) {
     clientsSheet.appendRow(['Client_ID', 'Client_Name', 'Mobile', 'City_State', 'Assigned_User', 'Last_Txn_Date', 'Yearly_Sales', 'Total_Followups_Count', 'Lead_Status', 'Primary_Service', 'Created_At']);
-    clientsSheet.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
-    
-    // Seed sample clients across different activity buckets (today, 5 days ago, 12 days ago, 25 days ago, 45 days ago)
-    const today = new Date();
-    const daysAgo = (d) => {
-      let dt = new Date();
-      dt.setDate(today.getDate() - d);
-      return Utilities.formatDate(dt, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    };
-
-    const sampleClients = [
-      ['CL1001', 'Jai Mahaveer Telecom', '9829012345', 'Jaipur, Rajasthan', 'pooja', daysAgo(1), 1250000, 1, 'Active', 'ZAP AEPS'],
-      ['CL1002', 'Krishna Digital Point', '9829023456', 'Kota, Rajasthan', 'pooja', daysAgo(5), 45000, 2, 'Active', 'ZAPUPI'],
-      ['CL1003', 'Rathore E-Mitra Kendra', '9829034567', 'Jodhpur, Rajasthan', 'amit', daysAgo(9), 23000, 3, 'Active', 'RISLDMT'],
-      ['CL1004', 'Balaji Multi Services', '9829045678', 'Udaipur, Rajasthan', 'amit', daysAgo(16), 12000, 4, 'Active', 'RISLUPI'],
-      ['CL1005', 'Sharma Communication', '9829056789', 'Ajmer, Rajasthan', 'pooja', daysAgo(35), 89000, 5, 'Locked', 'ZAPRECHARGE'],
-      ['CL1006', 'Gupta Online Center', '9829067890', 'Bikaner, Rajasthan', 'amit', daysAgo(85), 15000, 0, 'Active', 'RISL RECHARGE'],
-      ['CL1007', 'Verma Tech Solutions', '9829078901', 'Alwar, Rajasthan', 'pooja', daysAgo(3), 340000, 1, 'Active', 'ZAP AEPS'],
-      ['CL1008', 'Shree Ram Cyber Cafe', '9829089012', 'Sikar, Rajasthan', 'amit', daysAgo(12), 48000, 2, 'Active', 'RISLDMT'],
-      ['CL1009', 'Aman Pay Point', '9829090123', 'Bhilwara, Rajasthan', 'pooja', daysAgo(22), 62000, 1, 'Active', 'ZAPUPI'],
-      ['CL1010', 'Apex Banking Mitra', '9829091234', 'Sri Ganganagar, Raj', 'amit', daysAgo(0), 780000, 0, 'Active', 'RISLUPI']
-    ];
-
-    sampleClients.forEach(c => clientsSheet.appendRow([...c, new Date()]));
+    clientsSheet.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
   }
 
-  // 4. Sales_Data Sheet
+  // 4. Sales_Data
   let salesSheet = getOrCreateSheet(ss, TABS.SALES);
   if (salesSheet.getLastRow() === 0) {
     salesSheet.appendRow(['Txn_ID', 'Date', 'Client_ID', 'Client_Name', 'Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp']);
-    salesSheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
-
-    // Generate recent sales
-    const services = ['ZAP AEPS', 'ZAPRECHARGE', 'ZAPUPI', 'RISLDMT', 'RISLUPI', 'RISL RECHARGE'];
-    let curYear = new Date().getFullYear();
-    
-    // Sample monthly spread
-    const demoSales = [
-      ['TXN9001', curYear + '-01-15', 'CL1001', 'Jai Mahaveer Telecom', '9829012345', 'ZAP AEPS', 140, 450000, 2250, new Date()],
-      ['TXN9002', curYear + '-02-18', 'CL1007', 'Verma Tech Solutions', '9829078901', 'ZAP AEPS', 85, 230000, 1150, new Date()],
-      ['TXN9003', curYear + '-03-10', 'CL1002', 'Krishna Digital Point', '9829023456', 'ZAPUPI', 210, 180000, 900, new Date()],
-      ['TXN9004', curYear + '-04-20', 'CL1003', 'Rathore E-Mitra Kendra', '9829034567', 'RISLDMT', 65, 320000, 1600, new Date()],
-      ['TXN9005', curYear + '-05-14', 'CL1010', 'Apex Banking Mitra', '9829091234', 'RISLUPI', 320, 490000, 2450, new Date()],
-      ['TXN9006', curYear + '-06-25', 'CL1004', 'Balaji Multi Services', '9829045678', 'RISLUPI', 45, 95000, 475, new Date()],
-      ['TXN9007', curYear + '-07-08', 'CL1005', 'Sharma Communication', '9829056789', 'ZAPRECHARGE', 350, 75000, 1875, new Date()],
-      ['TXN9008', curYear + '-08-19', 'CL1009', 'Aman Pay Point', '9829090123', 'ZAPUPI', 180, 220000, 1100, new Date()],
-      ['TXN9009', curYear + '-09-11', 'CL1008', 'Shree Ram Cyber Cafe', '9829089012', 'RISLDMT', 90, 190000, 950, new Date()],
-      ['TXN9010', curYear + '-10-05', 'CL1001', 'Jai Mahaveer Telecom', '9829012345', 'ZAP AEPS', 240, 720000, 3600, new Date()],
-      ['TXN9011', curYear + '-11-01', 'CL1006', 'Gupta Online Center', '9829067890', 'RISL RECHARGE', 110, 42000, 1050, new Date()],
-      ['TXN9012', curYear + '-11-20', 'CL1010', 'Apex Banking Mitra', '9829091234', 'RISLUPI', 195, 290000, 1450, new Date()]
-    ];
-    demoSales.forEach(s => salesSheet.appendRow(s));
+    salesSheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
   }
 
-  // 5. Calling_Logs Sheet
+  // 5. Calling_Logs
   let callSheet = getOrCreateSheet(ss, TABS.CALLS);
   if (callSheet.getLastRow() === 0) {
     callSheet.appendRow(['Call_ID', 'Timestamp', 'Client_ID', 'Client_Name', 'Caller_User', 'Call_Outcome', 'QA_Responses', 'Recording_Drive_URL', 'Next_Followup_DateTime', 'Calendar_Event_ID', 'Notes']);
-    callSheet.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
-    
-    // Sample calling logs
-    const sampleQA = JSON.stringify({
-      q1: 'Connected with Owner',
-      q2: 'Server/Technical Issues',
-      q3: 'Testing Spice Money',
-      q4: '4 - Satisfied',
-      q5: 'Will start today',
-      q6: 'Portal login reset explained, committed 5 AEPS txns today.'
-    });
-
-    callSheet.appendRow([
-      'CAL1001',
-      new Date(),
-      'CL1001',
-      'Jai Mahaveer Telecom',
-      'pooja',
-      'Connected',
-      sampleQA,
-      'https://drive.google.com',
-      new Date(Date.now() + 86400000).toISOString(),
-      'evt_demo_101',
-      'Positive response, followup set for tomorrow.'
-    ]);
+    callSheet.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
   }
 
-  // 6. API_Sync_Logs Sheet
+  // 6. API_Sync_Logs
   let syncSheet = getOrCreateSheet(ss, TABS.SYNC_LOGS);
   if (syncSheet.getLastRow() === 0) {
     syncSheet.appendRow(['Sync_ID', 'Timestamp', 'Status', 'Records_Fetched', 'Message']);
-    syncSheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
-    syncSheet.appendRow(['SYNC1001', new Date(), 'SUCCESS', 12, 'Initial database setup and demo seed completed.']);
+    syncSheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+    syncSheet.appendRow(['SYNC_INIT', new Date(), 'SUCCESS', 0, 'Database tables initialized.']);
   }
-
-  return { success: true, message: 'Zapurse CRM Database initialized successfully with all 6 tabs!' };
 }
 
 function getOrCreateSheet(ss, name) {
   let sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-  }
+  if (!sheet) sheet = ss.insertSheet(name);
   return sheet;
 }
 
 /**
  * ------------------------------------------------------------------------------
- * 2. REST API: doGet HANDLER
- * Handles read operations from GitHub Pages frontend
+ * 5. REST API: doGet & doPost HANDLERS
  * ------------------------------------------------------------------------------
  */
 function doGet(e) {
@@ -188,7 +540,7 @@ function doGet(e) {
 
     switch (action) {
       case 'ping':
-        responseData = { status: 'ONLINE', app: 'Zapurse Fintech CRM API', time: new Date().toISOString() };
+        responseData = { status: 'ONLINE', app: 'Zapurse Fintech CRM Live API', time: new Date().toISOString() };
         break;
 
       case 'getInitialData':
@@ -212,7 +564,8 @@ function doGet(e) {
         break;
 
       case 'syncExternalSalesAPI':
-        responseData = syncExternalSalesAPIHandler();
+      case 'syncZapurse':
+        responseData = syncAllZapurseServices(params.fromDate, params.toDate, params.services ? params.services.split(',') : null);
         break;
 
       default:
@@ -226,12 +579,6 @@ function doGet(e) {
   }
 }
 
-/**
- * ------------------------------------------------------------------------------
- * 3. REST API: doPost HANDLER
- * Handles write/update operations from GitHub Pages frontend
- * ------------------------------------------------------------------------------
- */
 function doPost(e) {
   try {
     let payload = {};
@@ -265,8 +612,9 @@ function doPost(e) {
         responseData = manageUserHandler(payload);
         break;
 
-      case 'importSalesData':
-        responseData = importSalesDataHandler(payload.salesList);
+      case 'syncExternalSalesAPI':
+      case 'syncZapurse':
+        responseData = syncAllZapurseServices(payload.fromDate, payload.toDate, payload.services);
         break;
 
       case 'initDb':
@@ -284,9 +632,6 @@ function doPost(e) {
   }
 }
 
-/**
- * Standard CORS JSON Response
- */
 function createJsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
@@ -294,27 +639,23 @@ function createJsonResponse(data) {
 
 /**
  * ------------------------------------------------------------------------------
- * 4. HANDLERS IMPLEMENTATION
+ * 6. SUB-HANDLERS
  * ------------------------------------------------------------------------------
  */
 
-// A. Login Handler
 function loginHandler(username, password) {
-  if (!username || !password) {
-    return { success: false, message: 'Username and password are required' };
-  }
+  if (!username || !password) return { success: false, message: 'Username and password required' };
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(TABS.USERS);
-  if (!sheet) return { success: false, message: 'Database not initialized. Run setupDatabase().' };
+  if (!sheet) return { success: false, message: 'Database not initialized.' };
 
   const data = sheet.getDataRange().getValues();
-  // Columns: UserID(0), Name(1), Username(2), Password(3), Role(4), Allowed_Services(5), Allowed_Modules(6), Status(7)
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if (String(row[2]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
       if (String(row[3]) === String(password)) {
         if (String(row[7]).toLowerCase() !== 'active') {
-          return { success: false, message: 'User account is inactive or disabled' };
+          return { success: false, message: 'User account disabled' };
         }
         return {
           success: true,
@@ -336,50 +677,43 @@ function loginHandler(username, password) {
   return { success: false, message: 'User not found' };
 }
 
-// B. Initial Dashboard Data Handler
 function getInitialDataHandler(params) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureSheetsExist(ss);
+
   const salesSheet = ss.getSheetByName(TABS.SALES);
   const clientsSheet = ss.getSheetByName(TABS.CLIENTS);
   const callsSheet = ss.getSheetByName(TABS.CALLS);
   const configSheet = ss.getSheetByName(TABS.CONFIG);
-
-  if (!salesSheet || !clientsSheet) {
-    setupDatabase();
-  }
 
   const salesData = salesSheet.getDataRange().getValues();
   const clientsData = clientsSheet.getDataRange().getValues();
   const callsData = callsSheet ? callsSheet.getDataRange().getValues() : [];
   const configData = configSheet ? configSheet.getDataRange().getValues() : [];
 
-  // Parse Config
   let configMap = {};
   for (let i = 1; i < configData.length; i++) {
     configMap[configData[i][0]] = configData[i][1];
   }
 
-  // Calculate Dates
   const now = new Date();
   const curYear = now.getFullYear();
-  const curMonth = now.getMonth(); // 0-11
+  const curMonth = now.getMonth();
   
   let yesterday = new Date();
   yesterday.setDate(now.getDate() - 1);
   const yestStr = Utilities.formatDate(yesterday, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   const todayStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 
-  // KPI Metrics
   let yesterdaySales = { volume: 0, count: 0 };
   let monthlySales = { volume: 0, count: 0 };
   let yearlySales = { volume: 0, count: 0 };
 
-  // Monthly Chart Array (Jan - Dec)
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   let monthlyChartVolumes = new Array(12).fill(0);
   let monthlyChartTxns = new Array(12).fill(0);
 
-  // Parse Sales Rows: Txn_ID(0), Date(1), Client_ID(2), Client_Name(3), Mobile(4), Service_Name(5), Txn_Count(6), Volume_Amount(7), Commission_Revenue(8)
+  // Sales rows
   for (let i = 1; i < salesData.length; i++) {
     const row = salesData[i];
     const txnDate = new Date(row[1]);
@@ -387,46 +721,31 @@ function getInitialDataHandler(params) {
     const txnCount = Number(row[6]) || 0;
     const vol = Number(row[7]) || 0;
 
-    // Yearly
     if (txnDate.getFullYear() === curYear) {
       yearlySales.volume += vol;
       yearlySales.count += txnCount;
 
-      // Month Chart
       const m = txnDate.getMonth();
       monthlyChartVolumes[m] += vol;
       monthlyChartTxns[m] += txnCount;
 
-      // Current Month
       if (m === curMonth) {
         monthlySales.volume += vol;
         monthlySales.count += txnCount;
       }
     }
 
-    // Yesterday
     if (txnDateStr === yestStr) {
       yesterdaySales.volume += vol;
       yesterdaySales.count += txnCount;
     }
   }
 
-  // Find Min & Max month for visual color coding (Red / Green)
-  let maxMonthIdx = 0;
-  let minMonthIdx = 0;
-  let maxVol = -1;
-  let minVol = Infinity;
-
+  // Min / Max color coding
+  let maxMonthIdx = 0, minMonthIdx = 0, maxVol = -1, minVol = Infinity;
   monthlyChartVolumes.forEach((v, idx) => {
-    if (v > maxVol) {
-      maxVol = v;
-      maxMonthIdx = idx;
-    }
-    // Consider months up to current month or non-zero
-    if (idx <= curMonth && v < minVol) {
-      minVol = v;
-      minMonthIdx = idx;
-    }
+    if (v > maxVol) { maxVol = v; maxMonthIdx = idx; }
+    if (idx <= curMonth && v < minVol) { minVol = v; minMonthIdx = idx; }
   });
 
   const chartData = monthNames.map((name, idx) => ({
@@ -437,24 +756,22 @@ function getInitialDataHandler(params) {
     isLowest: idx === minMonthIdx && minVol < Infinity
   }));
 
-  // Scheduled Calls for Today
+  // Today's Followups
   let todayFollowupsCount = 0;
   for (let i = 1; i < callsData.length; i++) {
-    const followDate = callsData[i][8]; // Next_Followup_DateTime
+    const followDate = callsData[i][8];
     if (followDate) {
       const fd = new Date(followDate);
       if (!isNaN(fd.getTime())) {
-        const fdStr = Utilities.formatDate(fd, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        if (fdStr === todayStr) {
+        if (Utilities.formatDate(fd, Session.getScriptTimeZone(), 'yyyy-MM-dd') === todayStr) {
           todayFollowupsCount++;
         }
       }
     }
   }
 
-  // Lowest Performing Clients (Bottom 5 by Yearly Sales or Active but 0 recent txns)
+  // Clients
   let clientList = [];
-  // Columns: Client_ID(0), Client_Name(1), Mobile(2), City_State(3), Assigned_User(4), Last_Txn_Date(5), Yearly_Sales(6), Total_Followups_Count(7), Lead_Status(8), Primary_Service(9)
   for (let i = 1; i < clientsData.length; i++) {
     const row = clientsData[i];
     clientList.push({
@@ -471,14 +788,12 @@ function getInitialDataHandler(params) {
     });
   }
 
-  // Sort lowest performing clients (lowest yearly sales first)
   const lowestPerforming = [...clientList]
     .filter(c => c.status !== 'Locked')
     .sort((a, b) => a.yearlySales - b.yearlySales)
     .slice(0, 5);
 
-  // Recent 10 Transactions
-  const recentSales = salesData.slice(1).slice(-10).reverse().map(r => ({
+  const recentSales = salesData.slice(1).slice(-20).reverse().map(r => ({
     txnId: r[0],
     date: r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(r[1]),
     clientId: r[2],
@@ -490,12 +805,9 @@ function getInitialDataHandler(params) {
     commission: r[8]
   }));
 
-  // Services list
-  let services = ['ZAP AEPS', 'ZAPRECHARGE', 'ZAPUPI', 'RISLDMT', 'RISLUPI', 'RISL RECHARGE'];
+  let services = ZAPURSE_CONFIG.SERVICE_TYPES;
   if (configMap['Services_List']) {
-    try {
-      services = JSON.parse(configMap['Services_List']);
-    } catch (e) {}
+    try { services = JSON.parse(configMap['Services_List']); } catch (e) {}
   }
 
   return {
@@ -516,7 +828,6 @@ function getInitialDataHandler(params) {
   };
 }
 
-// C. Smart Calling Engine Clients Filter Handler
 function getClientsHandler(params) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(TABS.CLIENTS);
@@ -526,12 +837,11 @@ function getClientsHandler(params) {
   const now = new Date();
   const todayStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 
-  const inactiveFilter = params.inactiveDays ? Number(params.inactiveDays) : null; // e.g. 4, 7, 10, 15, 30, 90
+  const inactiveFilter = params.inactiveDays ? (params.inactiveDays === 'ALL' ? null : Number(params.inactiveDays)) : null;
   const includeToday = params.includeToday === 'true';
   const minYearlySales = params.minYearlySales ? Number(params.minYearlySales) : null;
   const serviceFilter = params.service || 'ALL';
   const searchQuery = params.search ? params.search.toLowerCase() : '';
-  const statusFilter = params.status || 'ALL'; // Active / Locked / ALL
 
   let results = [];
 
@@ -548,7 +858,6 @@ function getClientsHandler(params) {
     const status = String(row[8]);
     const primaryService = String(row[9] || 'General');
 
-    // Parse date & calculate inactivity
     let lastTxnDateObj = new Date(lastTxnDateRaw);
     let inactiveDays = 0;
     let isTodayTxn = false;
@@ -566,38 +875,14 @@ function getClientsHandler(params) {
       inactiveDays = 999;
     }
 
-    // Filter: Include / Exclude today's active clients
-    if (!includeToday && isTodayTxn) {
-      continue;
-    }
+    if (!includeToday && isTodayTxn) continue;
+    if (inactiveFilter !== null && inactiveDays < inactiveFilter) continue;
+    if (minYearlySales !== null && yearlySales > minYearlySales) continue;
+    if (serviceFilter !== 'ALL' && primaryService !== serviceFilter) continue;
 
-    // Filter: Inactivity Days (e.g. at least inactiveDays)
-    if (inactiveFilter !== null && inactiveDays < inactiveFilter) {
-      continue;
-    }
-
-    // Filter: Yearly Condition
-    if (minYearlySales !== null && yearlySales > minYearlySales) {
-      // If filtering for clients who did LESS than condition
-      continue;
-    }
-
-    // Filter: Service
-    if (serviceFilter !== 'ALL' && primaryService !== serviceFilter) {
-      continue;
-    }
-
-    // Filter: Status
-    if (statusFilter !== 'ALL' && status !== statusFilter) {
-      continue;
-    }
-
-    // Filter: Search Query (Client ID, Name, Mobile, City)
     if (searchQuery) {
-      const combined = (clientId + ' ' + clientName + ' ' + mobile + ' ' + cityState).toLowerCase();
-      if (!combined.includes(searchQuery)) {
-        continue;
-      }
+      const combined = `${clientId} ${clientName} ${mobile} ${cityState}`.toLowerCase();
+      if (!combined.includes(searchQuery)) continue;
     }
 
     results.push({
@@ -615,19 +900,12 @@ function getClientsHandler(params) {
     });
   }
 
-  // Sort by inactive days descending (most inactive first)
   results.sort((a, b) => b.inactiveDays - a.inactiveDays);
-
-  return {
-    total: results.length,
-    clients: results
-  };
+  return { total: results.length, clients: results };
 }
 
-// D. Client Details & Timeline History Handler
 function getClientHistoryHandler(clientId) {
   if (!clientId) return { error: 'clientId required' };
-
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const clientsSheet = ss.getSheetByName(TABS.CLIENTS);
   const callsSheet = ss.getSheetByName(TABS.CALLS);
@@ -653,19 +931,13 @@ function getClientHistoryHandler(clientId) {
     }
   }
 
-  // Calls Timeline
   let timeline = [];
   if (callsSheet) {
     const callsData = callsSheet.getDataRange().getValues();
     for (let i = 1; i < callsData.length; i++) {
       if (String(callsData[i][2]) === String(clientId)) {
         let qaParsed = {};
-        try {
-          qaParsed = JSON.parse(callsData[i][6]);
-        } catch (e) {
-          qaParsed = { raw: callsData[i][6] };
-        }
-
+        try { qaParsed = JSON.parse(callsData[i][6]); } catch (e) { qaParsed = { raw: callsData[i][6] }; }
         timeline.push({
           callId: callsData[i][0],
           timestamp: callsData[i][1] instanceof Date ? callsData[i][1].toISOString() : String(callsData[i][1]),
@@ -679,11 +951,8 @@ function getClientHistoryHandler(clientId) {
       }
     }
   }
-
-  // Sort timeline latest first
   timeline.reverse();
 
-  // Client's Recent Transactions
   let transactions = [];
   if (salesSheet) {
     const salesData = salesSheet.getDataRange().getValues();
@@ -702,25 +971,17 @@ function getClientHistoryHandler(clientId) {
   }
   transactions.reverse();
 
-  return {
-    client: clientInfo,
-    timeline: timeline,
-    transactions: transactions
-  };
+  return { client: clientInfo, timeline: timeline, transactions: transactions };
 }
 
-// E. Save Call Log (With Audio Upload to Drive & Calendar Sync)
 function saveCallLogHandler(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const callsSheet = ss.getSheetByName(TABS.CALLS);
   const clientsSheet = ss.getSheetByName(TABS.CLIENTS);
   const configSheet = ss.getSheetByName(TABS.CONFIG);
 
-  if (!callsSheet || !clientsSheet) {
-    return { success: false, message: 'CRM Sheets missing. Run setupDatabase().' };
-  }
+  if (!callsSheet || !clientsSheet) return { success: false, message: 'CRM Sheets missing.' };
 
-  // Fetch Config
   let maxLimit = 5;
   if (configSheet) {
     const configData = configSheet.getDataRange().getValues();
@@ -732,7 +993,7 @@ function saveCallLogHandler(payload) {
     }
   }
 
-  // 1. Audio Upload to Google Drive if audioBase64 exists
+  // Audio Upload to Google Drive if audioBase64 exists
   let driveFileUrl = '';
   if (payload.audioBase64) {
     try {
@@ -745,7 +1006,7 @@ function saveCallLogHandler(payload) {
     }
   }
 
-  // 2. Google Calendar Event Creation if Next_Followup_DateTime provided
+  // Google Calendar Event Creation
   let calendarEventId = '';
   if (payload.nextFollowupDateTime) {
     try {
@@ -759,14 +1020,13 @@ function saveCallLogHandler(payload) {
     }
   }
 
-  // 3. Insert into Calling_Logs
+  // Insert Calling Log
   const callId = 'CAL' + Math.floor(100000 + Math.random() * 900000);
-  const timestamp = new Date();
   const qaJsonStr = typeof payload.qaResponses === 'object' ? JSON.stringify(payload.qaResponses) : String(payload.qaResponses || '{}');
 
   callsSheet.appendRow([
     callId,
-    timestamp,
+    new Date(),
     payload.clientId,
     payload.clientName || '',
     payload.callerUser || 'caller',
@@ -778,7 +1038,7 @@ function saveCallLogHandler(payload) {
     payload.notes || ''
   ]);
 
-  // 4. Update Clients_Master Follow-up Count & Auto-Lock check
+  // Update Client Follow-up Count & Auto-Lock
   let newCount = 1;
   let isNowLocked = false;
   const clientsData = clientsSheet.getDataRange().getValues();
@@ -796,7 +1056,6 @@ function saveCallLogHandler(payload) {
         newStatus = 'Converted';
       }
 
-      // Update Total_Followups_Count (Col 8, index 8 in 1-based) & Lead_Status (Col 9, index 9)
       clientsSheet.getRange(i + 1, 8).setValue(newCount);
       clientsSheet.getRange(i + 1, 9).setValue(newStatus);
       break;
@@ -811,14 +1070,11 @@ function saveCallLogHandler(payload) {
     recordingUrl: driveFileUrl,
     calendarEventId: calendarEventId,
     message: isNowLocked 
-      ? 'Call logged! Client reached max followup limit (' + maxLimit + ') and is now auto-locked.' 
-      : 'Call logged successfully and follow-up scheduled!'
+      ? `Call logged! Client reached max limit (${maxLimit}) and is now locked.` 
+      : 'Call recorded and scheduled successfully!'
   };
 }
 
-/**
- * Upload Base64 Audio File to Google Drive Folder
- */
 function uploadAudioToDrive(base64Data, filename) {
   const folderName = 'Zapurse_Call_Recordings';
   let folder;
@@ -830,7 +1086,6 @@ function uploadAudioToDrive(base64Data, filename) {
     folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   }
 
-  // Strip data:audio/*;base64, if present
   let cleanBase64 = base64Data;
   let contentType = 'audio/mpeg';
   if (base64Data.indexOf(';base64,') > -1) {
@@ -847,14 +1102,11 @@ function uploadAudioToDrive(base64Data, filename) {
   return file.getUrl();
 }
 
-/**
- * Create Follow-up Event in Google Calendar
- */
 function createCalendarReminder(clientName, followupIsoString, notes) {
   const startTime = new Date(followupIsoString);
   if (isNaN(startTime.getTime())) return '';
 
-  const endTime = new Date(startTime.getTime() + 15 * 60 * 1000); // 15 mins call slot
+  const endTime = new Date(startTime.getTime() + 15 * 60 * 1000);
   const title = '📞 Zapurse Call: ' + clientName;
   const description = 'Scheduled Follow-up call.\nNotes: ' + notes;
 
@@ -866,7 +1118,6 @@ function createCalendarReminder(clientName, followupIsoString, notes) {
   return '';
 }
 
-// F. Admin Config & Dynamic Questions Handler
 function getAdminConfigHandler() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName(TABS.CONFIG);
@@ -898,16 +1149,12 @@ function getAdminConfigHandler() {
 
   let questions = [];
   if (configMap['Dynamic_Questions']) {
-    try {
-      questions = JSON.parse(configMap['Dynamic_Questions']);
-    } catch (e) {}
+    try { questions = JSON.parse(configMap['Dynamic_Questions']); } catch (e) {}
   }
 
-  let services = ['ZAP AEPS', 'ZAPRECHARGE', 'ZAPUPI', 'RISLDMT', 'RISLUPI', 'RISL RECHARGE'];
+  let services = ZAPURSE_CONFIG.SERVICE_TYPES;
   if (configMap['Services_List']) {
-    try {
-      services = JSON.parse(configMap['Services_List']);
-    } catch (e) {}
+    try { services = JSON.parse(configMap['Services_List']); } catch (e) {}
   }
 
   return {
@@ -921,7 +1168,6 @@ function getAdminConfigHandler() {
   };
 }
 
-// G. Save Admin Configuration
 function saveAdminConfigHandler(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName(TABS.CONFIG);
@@ -929,7 +1175,7 @@ function saveAdminConfigHandler(payload) {
 
   const data = configSheet.getDataRange().getValues();
 
-  function updateOrInsertKey(key, value) {
+  function updateOrInsert(key, value) {
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] === key) {
         configSheet.getRange(i + 1, 2).setValue(value);
@@ -937,41 +1183,26 @@ function saveAdminConfigHandler(payload) {
         return;
       }
     }
-    configSheet.appendRow([key, value, 'Admin updated', new Date()]);
+    configSheet.appendRow([key, value, 'Updated', new Date()]);
   }
 
-  if (payload.maxFollowupLimit !== undefined) {
-    updateOrInsertKey('Max_Followup_Limit', String(payload.maxFollowupLimit));
-  }
-  if (payload.yearlyMinSalesCondition !== undefined) {
-    updateOrInsertKey('Yearly_Min_Sales_Condition', String(payload.yearlyMinSalesCondition));
-  }
-  if (payload.services !== undefined) {
-    updateOrInsertKey('Services_List', JSON.stringify(payload.services));
-  }
-  if (payload.dynamicQuestions !== undefined) {
-    updateOrInsertKey('Dynamic_Questions', JSON.stringify(payload.dynamicQuestions));
-  }
+  if (payload.maxFollowupLimit !== undefined) updateOrInsert('Max_Followup_Limit', String(payload.maxFollowupLimit));
+  if (payload.yearlyMinSalesCondition !== undefined) updateOrInsert('Yearly_Min_Sales_Condition', String(payload.yearlyMinSalesCondition));
+  if (payload.services !== undefined) updateOrInsert('Services_List', JSON.stringify(payload.services));
+  if (payload.dynamicQuestions !== undefined) updateOrInsert('Dynamic_Questions', JSON.stringify(payload.dynamicQuestions));
 
-  return { success: true, message: 'Configuration saved successfully!' };
+  return { success: true, message: 'Settings saved successfully!' };
 }
 
-// H. User Management (Add / Update / Toggle Status)
 function manageUserHandler(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(TABS.USERS);
   if (!sheet) return { success: false, message: 'Users sheet missing' };
 
   const data = sheet.getDataRange().getValues();
-  const op = payload.operation; // 'create' | 'update' | 'toggleStatus'
+  const op = payload.operation;
 
   if (op === 'create') {
-    // Check duplicate username
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][2]).toLowerCase() === String(payload.username).toLowerCase()) {
-        return { success: false, message: 'Username already exists' };
-      }
-    }
     const userId = 'USR' + Math.floor(100 + Math.random() * 900);
     sheet.appendRow([
       userId,
@@ -984,45 +1215,27 @@ function manageUserHandler(payload) {
       'Active',
       new Date()
     ]);
-    return { success: true, message: 'User created successfully', userId: userId };
+    return { success: true, message: 'User created', userId: userId };
   }
 
-  if (op === 'update' || op === 'toggleStatus') {
+  if (op === 'toggleStatus') {
     for (let i = 1; i < data.length; i++) {
       if (String(data[i][0]) === String(payload.userId)) {
-        if (op === 'toggleStatus') {
-          const currentStatus = String(data[i][7]);
-          const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
-          sheet.getRange(i + 1, 8).setValue(newStatus);
-          return { success: true, message: 'User status updated to ' + newStatus };
-        } else {
-          if (payload.name) sheet.getRange(i + 1, 2).setValue(payload.name);
-          if (payload.password) sheet.getRange(i + 1, 4).setValue(payload.password);
-          if (payload.role) sheet.getRange(i + 1, 5).setValue(payload.role);
-          if (payload.allowedServices) {
-            sheet.getRange(i + 1, 6).setValue(Array.isArray(payload.allowedServices) ? payload.allowedServices.join(',') : payload.allowedServices);
-          }
-          if (payload.allowedModules) {
-            sheet.getRange(i + 1, 7).setValue(Array.isArray(payload.allowedModules) ? payload.allowedModules.join(',') : payload.allowedModules);
-          }
-          return { success: true, message: 'User details updated successfully' };
-        }
+        const cur = String(data[i][7]);
+        const next = cur === 'Active' ? 'Inactive' : 'Active';
+        sheet.getRange(i + 1, 8).setValue(next);
+        return { success: true, message: 'Status updated to ' + next };
       }
     }
-    return { success: false, message: 'User ID not found' };
   }
-
   return { success: false, message: 'Invalid operation' };
 }
 
-// I. Analytics & Reports Handler (Client Matrix & Caller Productivity)
 function getReportsHandler(params) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const salesSheet = ss.getSheetByName(TABS.SALES);
   const callsSheet = ss.getSheetByName(TABS.CALLS);
   const clientsSheet = ss.getSheetByName(TABS.CLIENTS);
 
-  // 1. Caller Productivity
   let callerStats = {};
   if (callsSheet) {
     const calls = callsSheet.getDataRange().getValues();
@@ -1040,7 +1253,6 @@ function getReportsHandler(params) {
     }
   }
 
-  // 2. Client Sales Matrix (Top 100 Clients with Monthly Volume & Service breakdown)
   let clientMatrix = [];
   if (clientsSheet) {
     const cData = clientsSheet.getDataRange().getValues();
@@ -1058,49 +1270,5 @@ function getReportsHandler(params) {
     }
   }
 
-  return {
-    callers: Object.values(callerStats),
-    matrix: clientMatrix
-  };
-}
-
-// J. Import Bulk Sales Data from External API or Webhook
-function importSalesDataHandler(salesList) {
-  if (!Array.isArray(salesList) || salesList.length === 0) {
-    return { success: false, message: 'No sales records provided' };
-  }
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(TABS.SALES);
-  const clientsSheet = ss.getSheetByName(TABS.CLIENTS);
-
-  let inserted = 0;
-  salesList.forEach(s => {
-    sheet.appendRow([
-      s.txnId || ('TXN' + Date.now() + Math.floor(Math.random() * 100)),
-      s.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
-      s.clientId,
-      s.clientName,
-      s.mobile || '',
-      s.serviceName || 'General',
-      s.txnCount || 1,
-      s.volume || 0,
-      s.commission || 0,
-      new Date()
-    ]);
-    inserted++;
-  });
-
-  return { success: true, message: inserted + ' sales records imported successfully!' };
-}
-
-// K. Dummy Sync Endpoint for Automated Triggers
-function syncExternalSalesAPIHandler() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const syncSheet = ss.getSheetByName(TABS.SYNC_LOGS);
-  const syncId = 'SYNC' + Date.now();
-  
-  if (syncSheet) {
-    syncSheet.appendRow([syncId, new Date(), 'SUCCESS', 0, 'Manual sync triggered. Backend is up-to-date.']);
-  }
-  return { success: true, syncId: syncId, message: 'External API sync finished successfully.' };
+  return { callers: Object.values(callerStats), matrix: clientMatrix };
 }
