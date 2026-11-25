@@ -9,6 +9,12 @@ const Calling = {
   currentClientList: [],
   activeCallingClient: null,
   cachedQuestions: [],
+  mediaRecorder: null,
+  audioChunks: [],
+  recordedBlob: null,
+  isRecording: false,
+  recInterval: null,
+  recSeconds: 0,
 
   async load() {
     const inactiveDays = this.currentInactiveDays;
@@ -192,8 +198,87 @@ const Calling = {
   },
 
   closeCallModal() {
+    this.stopLiveRecordingIfActive();
     document.getElementById('call-modal').classList.add('hidden');
     this.activeCallingClient = null;
+    this.recordedBlob = null;
+    const preview = document.getElementById('live-rec-preview');
+    if (preview) {
+      preview.src = '';
+      preview.classList.add('hidden');
+    }
+  },
+
+  async toggleLiveRecording() {
+    if (this.isRecording) {
+      // Stop Recording
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        this.mediaRecorder.stop();
+      }
+      this.isRecording = false;
+      clearInterval(this.recInterval);
+      document.getElementById('recording-timer')?.classList.add('hidden');
+      document.getElementById('rec-btn-text').textContent = 'Re-record Voice';
+      document.getElementById('start-rec-btn').className = 'px-3.5 py-1.5 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition';
+    } else {
+      // Start Recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.audioChunks = [];
+        this.mediaRecorder = new MediaRecorder(stream);
+
+        this.mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) this.audioChunks.push(e.data);
+        };
+
+        this.mediaRecorder.onstop = () => {
+          this.recordedBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+          const audioUrl = URL.createObjectURL(this.recordedBlob);
+          const preview = document.getElementById('live-rec-preview');
+          if (preview) {
+            preview.src = audioUrl;
+            preview.classList.remove('hidden');
+          }
+          // Stop mic tracks
+          stream.getTracks().forEach(t => t.stop());
+        };
+
+        this.mediaRecorder.start();
+        this.isRecording = true;
+        this.recSeconds = 0;
+
+        const timerEl = document.getElementById('recording-timer');
+        if (timerEl) {
+          timerEl.classList.remove('hidden');
+          timerEl.textContent = '● REC 00:00';
+        }
+
+        this.recInterval = setInterval(() => {
+          this.recSeconds++;
+          const mins = String(Math.floor(this.recSeconds / 60)).padStart(2, '0');
+          const secs = String(this.recSeconds % 60).padStart(2, '0');
+          if (timerEl) timerEl.textContent = `● REC ${mins}:${secs}`;
+        }, 1000);
+
+        document.getElementById('rec-btn-text').textContent = 'Stop Recording';
+        document.getElementById('start-rec-btn').className = 'px-3.5 py-1.5 rounded-xl bg-rose-600 text-white border border-rose-500 shadow-lg shadow-rose-600/40 text-xs font-bold flex items-center gap-1.5 transition animate-pulse';
+
+      } catch (err) {
+        Swal.fire('Microphone Permission', 'Could not access microphone: ' + err.message, 'warning');
+      }
+    }
+    if (window.lucide) lucide.createIcons();
+  },
+
+  stopLiveRecordingIfActive() {
+    if (this.isRecording) {
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        this.mediaRecorder.stop();
+      }
+      this.isRecording = false;
+      clearInterval(this.recInterval);
+      document.getElementById('recording-timer')?.classList.add('hidden');
+    }
   },
 
   toggleHistoryAccordion() {
@@ -326,12 +411,19 @@ const Calling = {
       if (el) qaResponses[q.id] = el.value;
     });
 
-    // Check for Audio File upload
+    // Check for Audio File upload or Live In-Browser Recording
     const fileInput = document.getElementById('call-modal-audio-file');
     let audioBase64 = '';
     let audioFileName = '';
 
-    if (fileInput.files && fileInput.files[0]) {
+    if (this.recordedBlob) {
+      audioFileName = `VoiceNote_${this.activeCallingClient.clientId}_${Date.now()}.webm`;
+      try {
+        audioBase64 = await Api.fileToBase64(this.recordedBlob);
+      } catch (e) {
+        console.warn('Recorded blob base64 failed:', e);
+      }
+    } else if (fileInput.files && fileInput.files[0]) {
       const file = fileInput.files[0];
       audioFileName = file.name;
       try {
