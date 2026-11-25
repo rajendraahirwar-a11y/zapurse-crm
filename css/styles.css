@@ -1,0 +1,85 @@
+/* ==============================================================================
+   ZAPURSE FINTECH CRM - CUSTOM STYLES
+   ============================================================================== */
+
+/* Custom Smooth Transitions */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Active Nav link pulse */
+.nav-link.active {
+  background: linear-gradient(90deg, rgba(2, 132, 199, 0.25) 0%, rgba(2, 132, 199, 0.05) 100%);
+  border-left: 4px solid #0284c7;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+/* Drawer Animation */
+.drawer-backdrop {
+  transition: opacity 0.3s ease-in-out;
+}
+.drawer-content {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Badge Glows */
+.badge-glow-red {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+.badge-glow-green {
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+.badge-glow-blue {
+  box-shadow: 0 0 12px rgba(2, 132, 199, 0.4);
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Modal Animation */
+@keyframes slideUpModal {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-slide-up {
+  animation: slideUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Audio Player Skinning */
+audio {
+  filter: invert(0.85) hue-rotate(180deg);
+  border-radius: 9999px;
+  height: 38px;
+}

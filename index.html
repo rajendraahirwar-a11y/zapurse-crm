@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Zapurse Fintech CRM — Sales & Smart Calling Command Center</title>
+  
+  <!-- PWA & Mobile Meta -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0284c7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Zapurse CRM">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='128' fill='%230284c7'/%3E%3Cpath d='M140 160h232l-140 192h140' stroke='%23ffffff' stroke-width='48' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+
+  <!-- Tailwind CSS & Lucide Icons & Chart.js & SweetAlert2 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              900: '#0c4a6e'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen flex flex-col selection:bg-brand-600 selection:text-white">
+
+  <!-- =========================================================================
+       1. AUTH / LOGIN SCREEN
+       ========================================================================= -->
+  <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div class="w-full max-w-md p-8 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-2xl backdrop-blur-xl relative overflow-hidden">
+      <!-- Glow ambient -->
+      <div class="absolute -top-24 -left-24 w-48 h-48 bg-brand-600/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Brand Header -->
+      <div class="text-center mb-8 relative">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-blue-500 shadow-lg shadow-brand-500/30 mb-3">
+          <i data-lucide="zap" class="w-8 h-8 text-white"></i>
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center justify-center gap-1.5">
+          <span>ZAPURSE</span><span class="text-brand-500">FINTECH</span>
+        </h1>
+        <p class="text-xs text-slate-400 mt-1 uppercase tracking-wider font-medium">Sales & Smart Calling CRM</p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" class="space-y-4" onsubmit="event.preventDefault(); Auth.handleLogin();">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Username</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <i data-lucide="user" class="w-4 h-4"></i>
+            </span>
+            <input type="text" id="login-username" required placeholder="Enter username" 
+              class="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-sm transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Password</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <i data-lucide="lock" class="w-4 h-4"></i>
+            </span>
+            <input type="password" id="login-password" required placeholder="••••••••" 
+              class="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-sm transition">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-400 pt-1">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="login-remember" checked class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-brand-600 focus:ring-brand-500">
+            <span>Remember me</span>
+          </label>
+          <button type="button" onclick="App.showApiConfigModal()" class="text-brand-400 hover:text-brand-300 transition">
+            Backend URL Config
+          </button>
+        </div>
+
+        <button type="submit" id="login-btn"
+          class="w-full py-3 px-4 bg-gradient-to-r from-brand-600 to-blue-600 hover:from-brand-500 hover:to-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/30 transition transform active:scale-98 flex items-center justify-center gap-2 text-sm mt-2">
+          <span>Sign In to CRM</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </form>
+
+      <!-- Quick Demo Logins -->
+      <div class="mt-6 pt-5 border-t border-slate-800 text-center">
+        <p class="text-xs text-slate-500 mb-2 font-medium">Quick One-Click Demo Logins:</p>
+        <div class="flex flex-wrap gap-2 justify-center">
+          <button type="button" onclick="Auth.fillDemo('admin', 'admin123')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium border border-slate-700 transition">
+            Admin (admin)
+          </button>
+          <button type="button" onclick="Auth.fillDemo('rahul', 'rahul123')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium border border-slate-700 transition">
+            Manager (rahul)
+          </button>
+          <button type="button" onclick="Auth.fillDemo('pooja', 'pooja123')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium border border-slate-700 transition">
+            Caller (pooja)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- =========================================================================
+       2. MAIN APPLICATION SHELL (AFTER LOGIN)
+       ========================================================================= -->
+  <div id="app-container" class="hidden flex-1 flex flex-col min-h-screen">
+
+    <!-- Top App Bar / Header -->
+    <header class="h-16 bg-slate-900/90 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md px-4 lg:px-6 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Mobile Drawer Hamburger -->
+        <button type="button" onclick="App.toggleMobileSidebar()" class="lg:hidden p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+
+        <!-- Brand / Screen Indicator -->
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-blue-500 flex items-center justify-center shadow-md">
+            <i data-lucide="zap" class="w-4 h-4 text-white"></i>
+          </div>
+          <div>
+            <span class="font-bold text-white tracking-tight text-sm md:text-base">ZAPURSE</span>
+            <span class="text-brand-500 font-bold text-sm md:text-base">CRM</span>
+          </div>
+          <span id="current-screen-badge" class="hidden sm:inline-flex ml-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+            Dashboard
+          </span>
+        </div>
+      </div>
+
+      <!-- Right Action Items -->
+      <div class="flex items-center gap-3">
+        <!-- Live API Status Indicator -->
+        <div id="api-status-pill" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-pointer" onclick="App.showApiConfigModal()">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="api-status-text" class="hidden md:inline">API Online</span>
+        </div>
+
+        <!-- User Profile Dropdown / Card -->
+        <div class="flex items-center gap-2 pl-2 border-l border-slate-800">
+          <div class="text-right hidden sm:block">
+            <p id="user-display-name" class="text-xs font-semibold text-white leading-tight">Admin Master</p>
+            <span id="user-role-badge" class="text-[10px] uppercase font-bold text-brand-400">ADMIN</span>
+          </div>
+          <div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-400 font-bold text-sm">
+            <span id="user-avatar-initials">A</span>
+          </div>
+          <button type="button" onclick="Auth.logout()" title="Logout" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+
+    <!-- Body: Sidebar + Main Content -->
+    <div class="flex-1 flex overflow-hidden">
+
+      <!-- LEFT SIDEBAR / MOBILE DRAWER -->
+      <aside id="app-sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform transform -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
+        
+        <!-- Sidebar Brand (Visible on mobile drawer top) -->
+        <div class="h-16 flex items-center justify-between px-5 border-b border-slate-800 lg:hidden">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center">
+              <i data-lucide="zap" class="w-4 h-4 text-white"></i>
+            </div>
+            <span class="font-bold text-white text-base">Zapurse Menu</span>
+          </div>
+          <button onclick="App.toggleMobileSidebar()" class="p-1.5 text-slate-400 hover:text-white rounded-lg">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+          <!-- 1. Home Dashboard -->
+          <a href="#dashboard" onclick="App.navigate('dashboard')" id="nav-dashboard"
+            class="nav-link active flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white transition group">
+            <i data-lucide="layout-dashboard" class="w-4 h-4 text-brand-400"></i>
+            <span>Home Dashboard</span>
+          </a>
+
+          <!-- 2. Dynamic Services Menu Section -->
+          <div class="pt-2">
+            <div class="px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+              <span>Fintech Services</span>
+              <span id="services-count-badge" class="px-1.5 py-0.2 text-[10px] bg-slate-800 text-slate-400 rounded">6</span>
+            </div>
+            <div id="dynamic-services-nav" class="space-y-1 mt-1 pl-1">
+              <!-- Dynamically populated from Admin Config / State -->
+              <!-- e.g. ZAP AEPS, ZAPRECHARGE, ZAPUPI, RISLDMT, RISLUPI, RISL RECHARGE -->
+            </div>
+          </div>
+
+          <!-- 3. Smart Calling Engine -->
+          <div class="pt-2">
+            <div class="px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Operations
+            </div>
+            <a href="#calling" onclick="App.navigate('calling')" id="nav-calling"
+              class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white transition group mt-1">
+              <i data-lucide="phone-call" class="w-4 h-4 text-emerald-400"></i>
+              <span class="flex-1">Smart Calling</span>
+              <span id="calling-badge-count" class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                0
+              </span>
+            </a>
+
+            <!-- 4. Reports & Analytics -->
+            <a href="#reports" onclick="App.navigate('reports')" id="nav-reports"
+              class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white transition group">
+              <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-400"></i>
+              <span>Analytics & Matrix</span>
+            </a>
+
+            <!-- 5. Admin Panel (Conditional) -->
+            <a href="#admin" onclick="App.navigate('admin')" id="nav-admin"
+              class="nav-link flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white transition group">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
+              <span>Admin Control Panel</span>
+            </a>
+          </div>
+        </nav>
+
+        <!-- Sidebar Footer: Fast Sync Trigger -->
+        <div class="p-4 border-t border-slate-800/80 bg-slate-900/50">
+          <button type="button" onclick="App.triggerManualSync()" class="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium flex items-center justify-center gap-2 border border-slate-700 transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="sync-icon"></i>
+            <span>Refresh / Sync Data</span>
+          </button>
+          <p class="text-[10px] text-center text-slate-500 mt-2">Zapurse CRM v1.0.0 • PWA Ready</p>
+        </div>
+      </aside>
+
+      <!-- Sidebar Backdrop on Mobile -->
+      <div id="sidebar-backdrop" onclick="App.toggleMobileSidebar()" class="fixed inset-0 bg-slate-950/70 z-40 hidden lg:hidden backdrop-blur-sm"></div>
+
+
+      <!-- MAIN CONTENT VIEWPORTS -->
+      <main class="flex-1 overflow-y-auto bg-slate-950 p-4 lg:p-6 space-y-6">
+
+        <!-- =====================================================================
+             VIEW 1: ALL-IN-ONE HOME DASHBOARD
+             ===================================================================== -->
+        <section id="view-dashboard" class="space-y-6">
+          
+          <!-- Top Row: Welcome & Quick Filters -->
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight">Executive Command Center</h2>
+              <p class="text-xs text-slate-400">Live sales performance across AEPS, Recharge, UPI, DMT & Calling operations.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="Dashboard.load()" class="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-300 text-xs flex items-center gap-1.5 transition">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                <span class="hidden sm:inline">Reload Stats</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- TOP 4 KPI CARDS -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Card 1: Yesterday Sales -->
+            <div class="p-5 rounded-2xl bg-slate-900 border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Yesterday Sales</span>
+                <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                  <i data-lucide="history" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <p id="kpi-yesterday-vol" class="text-2xl font-bold text-white">₹0</p>
+                <p class="text-xs text-slate-400 flex items-center gap-1">
+                  <span>Transactions:</span>
+                  <span id="kpi-yesterday-count" class="font-semibold text-slate-200">0</span>
+                </p>
+              </div>
+            </div>
+
+            <!-- Card 2: Current Month Sales -->
+            <div class="p-5 rounded-2xl bg-slate-900 border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Monthly Sales</span>
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                  <i data-lucide="calendar" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <p id="kpi-monthly-vol" class="text-2xl font-bold text-emerald-400">₹0</p>
+                <p class="text-xs text-slate-400 flex items-center gap-1">
+                  <span>Transactions:</span>
+                  <span id="kpi-monthly-count" class="font-semibold text-slate-200">0</span>
+                </p>
+              </div>
+            </div>
+
+            <!-- Card 3: Yearly Sales -->
+            <div class="p-5 rounded-2xl bg-slate-900 border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Yearly Sales</span>
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                  <i data-lucide="trending-up" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <p id="kpi-yearly-vol" class="text-2xl font-bold text-white">₹0</p>
+                <p class="text-xs text-slate-400 flex items-center gap-1">
+                  <span>Transactions:</span>
+                  <span id="kpi-yearly-count" class="font-semibold text-slate-200">0</span>
+                </p>
+              </div>
+            </div>
+
+            <!-- Card 4: Today's Scheduled Follow-ups -->
+            <div class="p-5 rounded-2xl bg-slate-900 border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today's Follow-ups</span>
+                <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                  <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <p id="kpi-today-followups" class="text-2xl font-bold text-amber-400">0</p>
+                <p class="text-xs text-slate-400 flex items-center gap-1">
+                  <button onclick="App.navigate('calling'); Calling.applyQuickFilter('today');" class="text-amber-400 hover:underline">
+                    View Followup Queue →
+                  </button>
+                </p>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- MIDDLE ROW: MONTHLY ANALYTICS CHART & LOWEST PERFORMING CLIENTS ALERT -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Monthly Sales Analytics Chart (Jan - Dec) -->
+            <div class="lg:col-span-2 p-5 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4 text-brand-400"></i>
+                    <span>Monthly Sales Analytics (Jan – Dec)</span>
+                  </h3>
+                  <p class="text-[11px] text-slate-400 mt-0.5">
+                    Highest Month is highlighted in <span class="text-emerald-400 font-semibold">Green</span>, Lowest in <span class="text-rose-400 font-semibold">Red</span>.
+                  </p>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button id="chart-toggle-vol" onclick="Dashboard.switchChartMetric('volume')" class="px-2.5 py-1 text-xs rounded-lg bg-brand-600 text-white font-medium transition">
+                    Volume (₹)
+                  </button>
+                  <button id="chart-toggle-txns" onclick="Dashboard.switchChartMetric('txns')" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 text-slate-400 hover:text-white font-medium transition">
+                    Txn Count
+                  </button>
+                </div>
+              </div>
+
+              <!-- Canvas Container -->
+              <div class="relative flex-1 min-h-[260px]">
+                <canvas id="monthlySalesChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Lowest Performing Clients Alert Box -->
+            <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-sm font-bold text-rose-400 flex items-center gap-1.5">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i>
+                    <span>Lowest Performing Clients</span>
+                  </h3>
+                  <span class="text-[10px] uppercase font-bold px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full">
+                    Action Required
+                  </span>
+                </div>
+                <p class="text-xs text-slate-400 mb-3">
+                  Merchants with bottom sales or zero recent transactions needing priority retention calling.
+                </p>
+
+                <!-- List of Low Performing Clients -->
+                <div id="lowest-clients-list" class="space-y-2.5">
+                  <!-- Dynamically rendered -->
+                  <div class="text-center py-6 text-slate-500 text-xs">Loading lowest performing merchants...</div>
+                </div>
+              </div>
+
+              <div class="pt-3 border-t border-slate-800 mt-3">
+                <button onclick="App.navigate('calling'); Calling.applyQuickFilter('15');" class="w-full py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                  <i data-lucide="phone-outgoing" class="w-3.5 h-3.5"></i>
+                  <span>Open Inactive Retention Calling</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- BOTTOM ROW: MASTER SALES TABLE -->
+          <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                  <i data-lucide="receipt" class="w-4 h-4 text-brand-400"></i>
+                  <span>Master Sales Transactions</span>
+                </h3>
+                <p class="text-xs text-slate-400">Detailed transaction entries synced from core fintech database.</p>
+              </div>
+
+              <!-- Table Filters -->
+              <div class="flex flex-wrap items-center gap-2">
+                <!-- Service Dropdown -->
+                <select id="sales-filter-service" onchange="Dashboard.filterSalesTable()" class="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                  <option value="ALL">All Services</option>
+                  <!-- Populated from config -->
+                </select>
+
+                <!-- Search Input -->
+                <div class="relative">
+                  <input type="text" id="sales-search-input" onkeyup="Dashboard.filterSalesTable()" placeholder="Search merchant / txn..."
+                    class="pl-8 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                  <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none"></i>
+                </div>
+
+                <!-- Export Button -->
+                <button onclick="Dashboard.exportSalesCSV()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs text-slate-300 font-medium transition flex items-center gap-1">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                  <span class="hidden sm:inline">Export CSV</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Table Container (Horizontal Scrollable) -->
+            <div class="overflow-x-auto border border-slate-800 rounded-xl">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                  <tr>
+                    <th class="py-3 px-3.5">Txn ID</th>
+                    <th class="py-3 px-3.5">Date</th>
+                    <th class="py-3 px-3.5">Merchant / Client</th>
+                    <th class="py-3 px-3.5">Service</th>
+                    <th class="py-3 px-3.5 text-right">Txn Count</th>
+                    <th class="py-3 px-3.5 text-right">Volume</th>
+                    <th class="py-3 px-3.5 text-right">Commission</th>
+                    <th class="py-3 px-3.5 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="master-sales-tbody" class="divide-y divide-slate-800/60 font-medium">
+                  <!-- Rendered dynamically -->
+                  <tr>
+                    <td colspan="8" class="text-center py-6 text-slate-500">Loading master sales data...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div class="flex items-center justify-between text-xs text-slate-400 pt-2">
+              <div class="flex items-center gap-2">
+                <span>Rows per page:</span>
+                <select id="sales-page-size" onchange="Dashboard.changePageSize(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
+                  <option value="10" selected>10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+                <span id="sales-pagination-info" class="ml-2">Showing 1-10 of 10</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button id="sales-prev-btn" onclick="Dashboard.prevPage()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 disabled:opacity-40 transition">
+                  Prev
+                </button>
+                <button id="sales-next-btn" onclick="Dashboard.nextPage()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 disabled:opacity-40 transition">
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+
+        <!-- =====================================================================
+             VIEW 2: DYNAMIC SERVICES VIEW
+             ===================================================================== -->
+        <section id="view-services" class="hidden space-y-6">
+          <!-- Dynamic Header -->
+          <div class="p-6 bg-gradient-to-r from-slate-900 to-slate-900/50 border border-slate-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-brand-600/20 border border-brand-500/30 flex items-center justify-center text-brand-400">
+                <i data-lucide="layers" class="w-6 h-6" id="service-view-icon"></i>
+              </div>
+              <div>
+                <h2 id="service-view-title" class="text-2xl font-bold text-white tracking-tight">ZAP AEPS</h2>
+                <p id="service-view-subtitle" class="text-xs text-slate-400">Aadhaar Enabled Payment System sales, merchants & commission stats.</p>
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+              <div class="px-4 py-2 bg-slate-950/60 rounded-xl border border-slate-800">
+                <span class="text-[10px] uppercase text-slate-400 block font-semibold">Service Volume</span>
+                <span id="service-view-total-vol" class="text-base font-bold text-brand-400">₹0</span>
+              </div>
+              <div class="px-4 py-2 bg-slate-950/60 rounded-xl border border-slate-800">
+                <span class="text-[10px] uppercase text-slate-400 block font-semibold">Txn Count</span>
+                <span id="service-view-total-txns" class="text-base font-bold text-emerald-400">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top & Bottom Performers for this Service -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Top Merchants -->
+            <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
+              <h3 class="text-sm font-bold text-emerald-400 flex items-center gap-1.5 mb-3">
+                <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                <span>Top Performing Merchants</span>
+              </h3>
+              <div id="service-top-merchants" class="space-y-2">
+                <!-- Dynamically loaded -->
+              </div>
+            </div>
+
+            <!-- Bottom Merchants -->
+            <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl">
+              <h3 class="text-sm font-bold text-rose-400 flex items-center gap-1.5 mb-3">
+                <i data-lucide="arrow-down-right" class="w-4 h-4"></i>
+                <span>Lowest Active Merchants (Need Attention)</span>
+              </h3>
+              <div id="service-bottom-merchants" class="space-y-2">
+                <!-- Dynamically loaded -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Service Specific Transactions Table -->
+          <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="list" class="w-4 h-4 text-brand-400"></i>
+              <span>Service Transactions Record</span>
+            </h3>
+            <div class="overflow-x-auto border border-slate-800 rounded-xl">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                  <tr>
+                    <th class="py-3 px-3.5">Txn ID</th>
+                    <th class="py-3 px-3.5">Date</th>
+                    <th class="py-3 px-3.5">Merchant Name</th>
+                    <th class="py-3 px-3.5">Mobile</th>
+                    <th class="py-3 px-3.5 text-right">Count</th>
+                    <th class="py-3 px-3.5 text-right">Volume</th>
+                    <th class="py-3 px-3.5 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="service-sales-tbody" class="divide-y divide-slate-800/60 font-medium">
+                  <!-- Dynamically rendered -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- =====================================================================
+             VIEW 3: SMART CALLING ENGINE (CORE PRODUCTIVITY TOOL)
+             ===================================================================== -->
+        <section id="view-calling" class="hidden space-y-6">
+          
+          <!-- Calling Header & Quick Filter Pills -->
+          <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                  <i data-lucide="phone-call" class="w-5 h-5 text-emerald-400"></i>
+                  <span>Smart Calling Engine</span>
+                </h2>
+                <p class="text-xs text-slate-400">Automated retention calling filter based on transaction inactivity & sales thresholds.</p>
+              </div>
+
+              <!-- Today Toggle Switch -->
+              <div class="flex items-center gap-2.5 bg-slate-950 px-3.5 py-2 rounded-xl border border-slate-800">
+                <span class="text-xs text-slate-300 font-medium">Include Today's Sales:</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="calling-include-today-toggle" onchange="Calling.load()" class="sr-only peer">
+                  <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600"></div>
+                </label>
+              </div>
+            </div>
+
+            <!-- ONE-CLICK INACTIVE FILTERS -->
+            <div class="pt-2 border-t border-slate-800">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                One-Click Inactivity Filters:
+              </span>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="Calling.applyQuickFilter('4')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="4">
+                  4 Days Inactive
+                </button>
+                <button type="button" onclick="Calling.applyQuickFilter('7')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="7">
+                  7 Days Inactive
+                </button>
+                <button type="button" onclick="Calling.applyQuickFilter('10')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="10">
+                  10 Days Inactive
+                </button>
+                <button type="button" onclick="Calling.applyQuickFilter('15')" class="calling-filter-btn active px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand-600 text-white border border-brand-500 shadow-md shadow-brand-600/30 transition" data-days="15">
+                  15 Days Inactive
+                </button>
+                <button type="button" onclick="Calling.applyQuickFilter('30')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="30">
+                  30 Days Inactive
+                </button>
+                <button type="button" onclick="Calling.applyQuickFilter('90')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="90">
+                  3 Months Inactive
+                </button>
+                <button type="button" onclick="Calling.applyQuickFilter('ALL')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="ALL">
+                  All Merchants
+                </button>
+              </div>
+            </div>
+
+            <!-- Additional Filter Controls -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Max Yearly Volume Filter (₹)</label>
+                <input type="number" id="calling-filter-yearly" onchange="Calling.load()" placeholder="e.g. 50000"
+                  class="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Filter by Service</label>
+                <select id="calling-filter-service" onchange="Calling.load()" class="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                  <option value="ALL">All Services</option>
+                  <!-- Populated from config -->
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Search Client / Mobile</label>
+                <div class="relative">
+                  <input type="text" id="calling-filter-search" onkeyup="Calling.handleSearch()" placeholder="Name, phone, or city..."
+                    class="w-full pl-8 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                  <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Calling Clients List / Table -->
+          <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                  <i data-lucide="users" class="w-4 h-4 text-brand-400"></i>
+                  <span>Target Calling Queue</span>
+                </h3>
+                <p id="calling-queue-summary" class="text-xs text-slate-400">Showing 0 merchants ready for calling.</p>
+              </div>
+            </div>
+
+            <!-- Queue Table -->
+            <div class="overflow-x-auto border border-slate-800 rounded-xl">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                  <tr>
+                    <th class="py-3 px-3.5">Client ID</th>
+                    <th class="py-3 px-3.5">Merchant Name</th>
+                    <th class="py-3 px-3.5">Mobile</th>
+                    <th class="py-3 px-3.5">City / State</th>
+                    <th class="py-3 px-3.5">Primary Service</th>
+                    <th class="py-3 px-3.5">Inactive Days</th>
+                    <th class="py-3 px-3.5 text-right">Yearly Sales</th>
+                    <th class="py-3 px-3.5 text-center">Follow-ups (Limit)</th>
+                    <th class="py-3 px-3.5 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="calling-queue-tbody" class="divide-y divide-slate-800/60 font-medium">
+                  <!-- Dynamically rendered -->
+                  <tr>
+                    <td colspan="9" class="text-center py-8 text-slate-500">Loading calling queue...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+
+        <!-- =====================================================================
+             VIEW 4: ANALYTICS & REPORTS VIEW
+             ===================================================================== -->
+        <section id="view-reports" class="hidden space-y-6">
+          <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-400"></i>
+                <span>Analytics & Productivity Matrix</span>
+              </h2>
+              <p class="text-xs text-slate-400">Caller performance, call connected rates, and comprehensive client sales matrix.</p>
+            </div>
+            <div>
+              <button onclick="Reports.exportReportCSV()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 transition">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                <span>Export Complete Matrix (CSV)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Caller Productivity Cards -->
+          <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="user-check" class="w-4 h-4 text-emerald-400"></i>
+              <span>Caller Productivity & Response Rates</span>
+            </h3>
+            
+            <div id="caller-productivity-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Client Performance Matrix Table -->
+          <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="grid" class="w-4 h-4 text-brand-400"></i>
+              <span>Client Master Sales & Calling Matrix</span>
+            </h3>
+            
+            <div class="overflow-x-auto border border-slate-800 rounded-xl">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                  <tr>
+                    <th class="py-3 px-3.5">Client ID</th>
+                    <th class="py-3 px-3.5">Client Name</th>
+                    <th class="py-3 px-3.5">Mobile</th>
+                    <th class="py-3 px-3.5">City</th>
+                    <th class="py-3 px-3.5">Primary Service</th>
+                    <th class="py-3 px-3.5 text-right">Yearly Volume</th>
+                    <th class="py-3 px-3.5 text-center">Follow-ups</th>
+                    <th class="py-3 px-3.5 text-center">Lead Status</th>
+                  </tr>
+                </thead>
+                <tbody id="matrix-tbody" class="divide-y divide-slate-800/60 font-medium">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- =====================================================================
+             VIEW 5: ADMIN CONTROL PANEL
+             ===================================================================== -->
+        <section id="view-admin" class="hidden space-y-6">
+          <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl">
+            <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+              <i data-lucide="shield-check" class="w-5 h-5 text-amber-400"></i>
+              <span>Admin Master Control Panel</span>
+            </h2>
+            <p class="text-xs text-slate-400">Manage callers, dynamic questionnaire forms, limits, services and database sync.</p>
+            
+            <!-- Admin Navigation Subtabs -->
+            <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-800">
+              <button onclick="Admin.switchTab('users')" id="admin-tab-users-btn" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-brand-600 text-white transition">
+                User Management
+              </button>
+              <button onclick="Admin.switchTab('questions')" id="admin-tab-questions-btn" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition">
+                Dynamic Questions
+              </button>
+              <button onclick="Admin.switchTab('settings')" id="admin-tab-settings-btn" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition">
+                System Limits & Services
+              </button>
+              <button onclick="Admin.switchTab('connection')" id="admin-tab-connection-btn" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition">
+                Backend Connection API
+              </button>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 1: USER MANAGEMENT -->
+          <div id="admin-subtab-users" class="space-y-4">
+            <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-bold text-white">System Users & Role-based Access</h3>
+                  <p class="text-xs text-slate-400">Control who can access which fintech service and modules.</p>
+                </div>
+                <button onclick="Admin.showCreateUserModal()" class="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                  <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                  <span>Add New User</span>
+                </button>
+              </div>
+
+              <!-- Users Table -->
+              <div class="overflow-x-auto border border-slate-800 rounded-xl">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                    <tr>
+                      <th class="py-3 px-3.5">User ID</th>
+                      <th class="py-3 px-3.5">Name</th>
+                      <th class="py-3 px-3.5">Username</th>
+                      <th class="py-3 px-3.5">Role</th>
+                      <th class="py-3 px-3.5">Allowed Services</th>
+                      <th class="py-3 px-3.5">Status</th>
+                      <th class="py-3 px-3.5 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-users-tbody" class="divide-y divide-slate-800/60 font-medium">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 2: DYNAMIC QUESTIONS BUILDER -->
+          <div id="admin-subtab-questions" class="hidden space-y-4">
+            <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-bold text-white">Calling Dynamic Questionnaire Builder</h3>
+                  <p class="text-xs text-slate-400">Configure questions that callers must fill during retention calls.</p>
+                </div>
+                <button onclick="Admin.addNewQuestionPrompt()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                  <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                  <span>Add Question</span>
+                </button>
+              </div>
+
+              <div id="dynamic-questions-list" class="space-y-3">
+                <!-- Populated dynamically -->
+              </div>
+
+              <button onclick="Admin.saveDynamicQuestions()" class="py-2.5 px-4 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-md transition">
+                Save Questions to Database
+              </button>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 3: SYSTEM LIMITS & SERVICES -->
+          <div id="admin-subtab-settings" class="hidden space-y-4">
+            <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-5">
+              <h3 class="text-sm font-bold text-white">Fintech Business Rules & Service Catalog</h3>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                    Max Follow-up Limit Before Auto-Lock
+                  </label>
+                  <p class="text-[11px] text-slate-500 mb-2">When a client reaches this number of follow-ups, they are auto-locked.</p>
+                  <input type="number" id="setting-max-followup" class="w-full px-3.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                    Yearly Minimum Sales Condition (₹)
+                  </label>
+                  <p class="text-[11px] text-slate-500 mb-2">Threshold for filtering high vs low performing merchants.</p>
+                  <input type="number" id="setting-min-sales" class="w-full px-3.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Active Fintech Services List (Comma-separated)
+                </label>
+                <p class="text-[11px] text-slate-500 mb-2">Admin can add future services anytime (e.g. ZAP AEPS, ZAPUPI, RISLDMT, etc.)</p>
+                <textarea id="setting-services-list" rows="3" class="w-full px-3.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-mono"></textarea>
+              </div>
+
+              <button onclick="Admin.saveSystemSettings()" class="py-2.5 px-5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-md transition">
+                Save System Rules
+              </button>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 4: CONNECTION API CONFIG -->
+          <div id="admin-subtab-connection" class="hidden space-y-4">
+            <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+              <h3 class="text-sm font-bold text-white">Google Apps Script Web App Connection</h3>
+              <p class="text-xs text-slate-400">Paste your deployed Google Apps Script Web App URL below to connect to live Google Sheets.</p>
+              
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Web App API URL</label>
+                <input type="url" id="admin-api-url-input" placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                  class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-mono">
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <button onclick="App.saveApiUrlFromAdmin()" class="py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition">
+                  Save & Connect
+                </button>
+                <button onclick="App.testApiConnection()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium border border-slate-700 transition">
+                  Test Connection (Ping)
+                </button>
+                <button onclick="App.useDemoMode()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-medium border border-slate-700 transition">
+                  Switch to Standalone Demo Mode
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+
+  <!-- =========================================================================
+       3. SMART CALLING ACTION DRAWER / MODAL (CALL POPUP)
+       ========================================================================= -->
+  <div id="call-modal" class="fixed inset-0 z-50 hidden">
+    <!-- Backdrop -->
+    <div onclick="Calling.closeCallModal()" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"></div>
+    
+    <!-- Modal Dialog / Drawer -->
+    <div class="relative w-full max-w-2xl max-h-[92vh] mx-auto my-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+      
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 sticky top-0 z-10 backdrop-blur-md">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 id="call-modal-client-name" class="text-base font-bold text-white">Merchant Calling</h3>
+            <span id="call-modal-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Active
+            </span>
+          </div>
+          <p id="call-modal-client-sub" class="text-xs text-slate-400 mt-0.5">CL1001 • Jaipur, Rajasthan • ZAP AEPS</p>
+        </div>
+        <button onclick="Calling.closeCallModal()" class="p-1.5 text-slate-400 hover:text-white rounded-lg transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="flex-1 overflow-y-auto p-5 space-y-5 text-xs">
+
+        <!-- Phone Dialer Card -->
+        <div class="p-4 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between">
+          <div>
+            <span class="text-[10px] uppercase font-bold text-slate-400 block">Registered Mobile Number</span>
+            <span id="call-modal-mobile" class="text-base font-bold text-white tracking-wider">+91 9829012345</span>
+          </div>
+          <a id="call-modal-tel-link" href="tel:+919829012345" class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition">
+            <i data-lucide="phone-outgoing" class="w-4 h-4"></i>
+            <span>Dial Now</span>
+          </a>
+        </div>
+
+        <!-- Follow-up Limit Alert / Progress -->
+        <div id="call-modal-limit-box" class="p-3 rounded-xl bg-slate-800/60 border border-slate-700 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-4 h-4 text-amber-400"></i>
+            <span class="text-slate-300 font-medium">Follow-up History Count:</span>
+          </div>
+          <span id="call-modal-followup-count" class="font-bold text-white px-2 py-0.5 bg-slate-700 rounded-lg">
+            Call #1 / 5 Limit
+          </span>
+        </div>
+
+        <!-- Complete Past History Timeline & Recordings Player -->
+        <div class="border border-slate-800 rounded-xl overflow-hidden">
+          <button type="button" onclick="Calling.toggleHistoryAccordion()" class="w-full p-3.5 bg-slate-800/70 hover:bg-slate-800 text-left flex items-center justify-between transition">
+            <span class="font-bold text-slate-200 flex items-center gap-2">
+              <i data-lucide="history" class="w-4 h-4 text-brand-400"></i>
+              <span>Past Call History & Recordings</span>
+            </span>
+            <i data-lucide="chevron-down" id="history-accordion-chevron" class="w-4 h-4 text-slate-400 transition-transform"></i>
+          </button>
+          
+          <div id="call-modal-history-content" class="p-4 bg-slate-950 space-y-3 hidden">
+            <div id="call-modal-timeline-list" class="space-y-3">
+              <!-- Rendered dynamically -->
+              <p class="text-slate-500 text-center py-2">No previous call records found.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Questions Form (From Admin Config) -->
+        <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-white flex items-center gap-1.5">
+              <i data-lucide="clipboard-list" class="w-4 h-4 text-brand-400"></i>
+              <span>Caller Dynamic Questionnaire</span>
+            </h4>
+            <span class="text-[10px] text-slate-500 font-medium">Auto-configured by Admin</span>
+          </div>
+
+          <!-- Dynamic Questions Inputs Container -->
+          <div id="call-modal-dynamic-questions-container" class="space-y-3 pt-2">
+            <!-- Dynamically rendered -->
+          </div>
+        </div>
+
+        <!-- Recording Upload (Google Drive Upload) -->
+        <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-2">
+          <label class="block font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="mic" class="w-4 h-4 text-rose-400"></i>
+            <span>Upload Call Recording (.mp3, .wav, .m4a)</span>
+          </label>
+          <p class="text-[11px] text-slate-400">Audio file will automatically upload to your Google Drive "Zapurse_Call_Recordings" folder.</p>
+          <input type="file" id="call-modal-audio-file" accept="audio/*"
+            class="w-full file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-600 file:text-white hover:file:bg-brand-500 text-slate-400 text-xs cursor-pointer">
+        </div>
+
+        <!-- Next Call Scheduler & Google Calendar Reminder -->
+        <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3">
+          <label class="block font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="calendar-plus" class="w-4 h-4 text-amber-400"></i>
+            <span>Next Follow-up & Google Calendar Sync</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Follow-up Date</label>
+              <input type="date" id="call-modal-next-date" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs">
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Follow-up Time Slot</label>
+              <input type="time" id="call-modal-next-time" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs">
+            </div>
+          </div>
+        </div>
+
+        <!-- Call Outcome & Conversion Check -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">Call Outcome</label>
+            <select id="call-modal-outcome" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs">
+              <option value="Connected">Connected (Satisfied / Follow-up required)</option>
+              <option value="Busy / Call Later">Busy / Call Later</option>
+              <option value="RNR">RNR (Ringing No Response)</option>
+              <option value="Not Interested">Not Interested / Switched</option>
+              <option value="Wrong Number">Wrong Number</option>
+            </select>
+          </div>
+          <div class="flex items-center pt-5">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="call-modal-mark-converted" class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-emerald-500 focus:ring-emerald-400">
+              <span class="text-slate-200 font-semibold">Mark as Re-activated / Converted</span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-slate-800 bg-slate-900 flex items-center justify-end gap-3 sticky bottom-0">
+        <button type="button" onclick="Calling.closeCallModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">
+          Cancel
+        </button>
+        <button type="button" id="call-modal-save-btn" onclick="Calling.submitCallLog()"
+          class="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-600/30 transition flex items-center gap-1.5">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Save Call & Sync Calendar</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- =========================================================================
+       4. BACKEND API CONFIG MODAL
+       ========================================================================= -->
+  <div id="api-config-modal" class="fixed inset-0 z-50 hidden">
+    <div onclick="App.hideApiConfigModal()" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
+    <div class="relative w-full max-w-lg mx-auto my-12 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden animate-slide-up">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="link" class="w-5 h-5 text-brand-400"></i>
+          <span>Backend Connection Settings</span>
+        </h3>
+        <button onclick="App.hideApiConfigModal()" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-400 mb-4">
+        Paste your deployed Google Apps Script Web App URL below. When using Demo Mode, realistic sample data is used locally for instant testing.
+      </p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Google Apps Script Web App URL</label>
+          <input type="url" id="modal-api-url" placeholder="https://script.google.com/macros/s/.../exec"
+            class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-mono">
+        </div>
+
+        <div class="flex items-center justify-between gap-2 pt-2">
+          <button onclick="App.useDemoMode()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-medium border border-slate-700 transition">
+            Use Standalone Demo Mode
+          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="App.testApiConnection()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium border border-slate-700 transition">
+              Ping Test
+            </button>
+            <button onclick="App.saveApiUrlFromModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold shadow-md transition">
+              Save URL
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- =========================================================================
+       5. APPLICATION JAVASCRIPT MODULES
+       ========================================================================= -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/services.js"></script>
+  <script src="js/calling.js"></script>
+  <script src="js/reports.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('Zapurse CRM Service Worker Registered:', reg.scope))
+          .catch((err) => console.warn('Service Worker registration skipped:', err));
+      });
+    }
+  </script>
+</body>
+</html>

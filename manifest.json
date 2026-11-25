@@ -1,0 +1,18 @@
+{
+  "name": "Zapurse Fintech CRM",
+  "short_name": "Zapurse CRM",
+  "description": "High-Performance Fintech Sales & Smart Calling CRM for Zapurse",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0284c7",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='128' fill='%230284c7'/%3E%3Cpath d='M140 160h232l-140 192h140' stroke='%23ffffff' stroke-width='48' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
