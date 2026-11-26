@@ -244,12 +244,12 @@ const Dashboard = {
 
     tbody.innerHTML = pageItems.map(item => `
       <tr class="hover:bg-slate-800/40 transition">
-        <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${item.txnId}</td>
-        <td class="py-3 px-3.5 text-slate-400">${item.date}</td>
-        <td class="py-3 px-3.5">
-          <p class="font-bold text-white">${item.clientName}</p>
-          <p class="text-[11px] text-slate-500">${item.mobile}</p>
-        </td>
+        <td class="py-3 px-3.5 text-slate-300 font-mono whitespace-nowrap">${item.date}</td>
+        <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${item.clientId}</td>
+        <td class="py-3 px-3.5 font-bold text-white">${item.clientName}</td>
+        <td class="py-3 px-3.5 text-slate-300 font-mono">${item.mobile || '-'}</td>
+        <td class="py-3 px-3.5 text-slate-300">${item.parentName || '-'}</td>
+        <td class="py-3 px-3.5 text-slate-400 font-mono">${item.parentMobile || '-'}</td>
         <td class="py-3 px-3.5">
           <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-brand-400 border border-slate-700">
             ${item.serviceName}
@@ -257,10 +257,10 @@ const Dashboard = {
         </td>
         <td class="py-3 px-3.5 text-right font-mono">${Number(item.txnCount).toLocaleString('en-IN')}</td>
         <td class="py-3 px-3.5 text-right font-mono font-bold text-white">₹${Number(item.volume).toLocaleString('en-IN')}</td>
-        <td class="py-3 px-3.5 text-right font-mono text-emerald-400">₹${Number(item.commission || 0).toLocaleString('en-IN')}</td>
         <td class="py-3 px-3.5 text-center">
-          <button onclick="Calling.openCallModalById('${item.clientId}')" class="px-2.5 py-1 bg-brand-600/20 hover:bg-brand-600 text-brand-400 hover:text-white rounded-lg text-xs font-semibold transition" title="Call Merchant">
-            Call
+          <button onclick="Calling.openCallModalById('${item.clientId}')" class="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 rounded-lg text-xs font-semibold transition flex items-center gap-1 mx-auto" title="Call Merchant">
+            <i data-lucide="phone" class="w-3 h-3"></i>
+            <span>Call</span>
           </button>
         </td>
       </tr>
@@ -299,17 +299,17 @@ const Dashboard = {
       return;
     }
 
-    const headers = ['Txn ID', 'Date', 'Client ID', 'Client Name', 'Mobile', 'Service Name', 'Txn Count', 'Volume (INR)', 'Commission'];
+    const headers = ['TransactionDateTime', 'Kiosk ID', 'Client_Name', 'ClientMobileNo', 'Parent_Name', 'Parent Mobile No', 'Service', 'TotalNumberoftransaction', 'Amount'];
     const rows = this.filteredSalesData.map(d => [
-      `"${d.txnId}"`,
       `"${d.date}"`,
       `"${d.clientId}"`,
-      `"${d.clientName.replace(/"/g, '""')}"`,
-      `"${d.mobile}"`,
+      `"${(d.clientName || '').replace(/"/g, '""')}"`,
+      `"${d.mobile || ''}"`,
+      `"${(d.parentName || '').replace(/"/g, '""')}"`,
+      `"${d.parentMobile || ''}"`,
       `"${d.serviceName}"`,
       d.txnCount,
-      d.volume,
-      d.commission || 0
+      d.volume
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');

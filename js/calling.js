@@ -157,6 +157,17 @@ const Calling = {
     // Populate Headers
     document.getElementById('call-modal-client-name').textContent = client.clientName;
     document.getElementById('call-modal-client-sub').textContent = `${client.clientId} • ${client.cityState} • ${client.primaryService || 'Fintech'}`;
+    
+    // Parent Distributor Info
+    const parentSub = document.getElementById('call-modal-parent-sub');
+    const parentText = document.getElementById('call-modal-parent-text');
+    if (client.parentName && client.parentName !== '-') {
+      parentText.textContent = `Parent Distributor: ${client.parentName} ${client.parentMobile && client.parentMobile !== '-' ? '(Mob: ' + client.parentMobile + ')' : ''}`;
+      parentSub.classList.remove('hidden');
+    } else {
+      parentSub.classList.add('hidden');
+    }
+
     document.getElementById('call-modal-mobile').textContent = client.mobile;
     document.getElementById('call-modal-tel-link').href = `tel:${client.mobile}`;
 
@@ -331,63 +342,152 @@ const Calling = {
 
   async loadPastHistory(clientId) {
     const timelineList = document.getElementById('call-modal-timeline-list');
-    if (!timelineList) return;
+    const historyCountBadge = document.getElementById('call-modal-history-count');
+    const daysTbody = document.getElementById('call-modal-7days-tbody');
+    const summaryBadge = document.getElementById('call-modal-7days-summary');
 
-    timelineList.innerHTML = `<p class="text-slate-500 text-center py-2">Loading past interactions...</p>`;
+    if (timelineList) timelineList.innerHTML = `<p class="text-slate-500 text-center py-2">Loading past interactions...</p>`;
+    if (daysTbody) daysTbody.innerHTML = `<tr><td colspan="4" class="text-center py-3 text-slate-500">Loading 7-day sales breakdown...</td></tr>`;
 
     try {
       const res = await Api.get('getClientHistory', { clientId });
-      const timeline = res.timeline || [];
 
-      if (timeline.length === 0) {
-        timelineList.innerHTML = `<p class="text-slate-500 text-center py-2">No prior calling records found.</p>`;
-        return;
+      // 1. Render Parent Info if present in client record
+      if (res.client) {
+        const parentSub = document.getElementById('call-modal-parent-sub');
+        const parentText = document.getElementById('call-modal-parent-text');
+        if (parentSub && parentText && (res.client.parentName || res.client.parentMobile)) {
+          const pName = res.client.parentName && res.client.parentName !== '-' ? res.client.parentName : '';
+          const pMob = res.client.parentMobile && res.client.parentMobile !== '-' ? res.client.parentMobile : '';
+          if (pName || pMob) {
+            parentText.textContent = `Parent Distributor: ${pName || '-'} (Mob: ${pMob || '-'})`;
+            parentSub.classList.remove('hidden');
+          }
+        }
       }
 
-      timelineList.innerHTML = timeline.map(t => {
-        let recordingPlayer = '';
-        if (t.recordingUrl && t.recordingUrl.startsWith('http')) {
-          recordingPlayer = `
-            <div class="mt-2 pt-2 border-t border-slate-800/80">
-              <span class="text-[10px] text-slate-400 font-bold block mb-1">Call Audio Recording:</span>
-              <audio controls class="w-full h-8">
-                <source src="${t.recordingUrl}" type="audio/mpeg">
-                Your browser does not support audio playback.
-              </audio>
+      // 2. Render Previous 7 Days Day-by-Day Sales Table
+      const sales7 = res.last7DaysSales || [];
+      if (summaryBadge) {
+        summaryBadge.textContent = `Total 7-Day: ₹${Number(res.total7DayVolume || 0).toLocaleString('en-IN')} (${Number(res.total7DayTxns || 0).toLocaleString('en-IN')} Txns)`;
+      }
+
+      if (daysTbody) {
+        if (sales7.length === 0) {
+          daysTbody.innerHTML = `<tr><td colspan="4" class="text-center py-3 text-slate-500">No transactions recorded in the last 7 days.</td></tr>`;
+        } else {
+          daysTbody.innerHTML = sales7.map(d => {
+            const isZero = d.volume === 0;
+            const statusBadge = isZero
+              ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">0 Txns (Drop)</span>`
+              : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Active (${d.count})</span>`;
+            
+            const volText = isZero 
+              ? `<span class="text-slate-500 font-mono">₹0</span>`
+              : `<span class="text-emerald-400 font-mono font-bold">₹${Number(d.volume).toLocaleString('en-IN')}</span>`;
+            
+            const countText = isZero
+              ? `<span class="text-slate-500 font-mono">0</span>`
+              : `<span class="text-white font-mono font-semibold">${d.count}</span>`;
+
+            return `
+              <tr class="hover:bg-slate-800/40 transition">
+                <td class="py-2.5 px-3 font-semibold text-white">
+                  ${d.label} <span class="text-[10px] text-slate-500 font-mono block">${d.date}</span>
+                </td>
+                <td class="py-2.5 px-3 text-right">${countText}</td>
+                <td class="py-2.5 px-3 text-right">${volText}</td>
+                <td class="py-2.5 px-3 text-center">${statusBadge}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+
+      // 3. Render Complete Past History Timeline
+      const timeline = res.timeline || [];
+      if (historyCountBadge) {
+        historyCountBadge.textContent = `${timeline.length} previous call${timeline.length === 1 ? '' : 's'}`;
+      }
+
+      if (timelineList) {
+        if (timeline.length === 0) {
+          timelineList.innerHTML = `
+            <div class="text-center py-4 text-slate-500">
+              <p>No prior calling records found. This is Call #1 for this merchant.</p>
             </div>
           `;
-        }
+        } else {
+          timelineList.innerHTML = timeline.map((t, idx) => {
+            let recordingPlayer = '';
+            if (t.recordingUrl && t.recordingUrl.startsWith('http')) {
+              recordingPlayer = `
+                <div class="mt-2.5 p-2 bg-slate-950 rounded-lg border border-slate-800">
+                  <span class="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mb-1">
+                    <i data-lucide="play" class="w-3 h-3 text-brand-400"></i> Call Audio Recording:
+                  </span>
+                  <audio controls class="w-full h-7">
+                    <source src="${t.recordingUrl}" type="audio/mpeg">
+                    Your browser does not support audio playback.
+                  </audio>
+                </div>
+              `;
+            }
 
-        // Parse QA responses
-        let qaBadges = '';
-        if (t.qaResponses && typeof t.qaResponses === 'object') {
-          qaBadges = Object.entries(t.qaResponses).map(([k, v]) => `
-            <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded text-[10px]">
-              ${v}
-            </span>
-          `).join(' ');
-        }
+            let qaHtml = '';
+            if (t.qaResponses && typeof t.qaResponses === 'object') {
+              qaHtml = `
+                <div class="space-y-1 pt-1.5 border-t border-slate-800/60 mt-1.5 text-[11px]">
+                  ${Object.entries(t.qaResponses).map(([k, v]) => `
+                    <div class="flex items-start gap-1">
+                      <span class="text-slate-400 font-semibold min-w-[90px]">${k}:</span>
+                      <span class="text-slate-200 font-medium whitespace-pre-line">${v}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              `;
+            }
 
-        return `
-          <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1.5">
-            <div class="flex items-center justify-between">
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-500/10 text-brand-400 border border-brand-500/20">
-                ${t.callOutcome || 'Connected'}
-              </span>
-              <span class="text-[10px] text-slate-500 font-mono">
-                ${new Date(t.timestamp).toLocaleString()}
-              </span>
-            </div>
-            <p class="text-xs text-white font-medium">${t.notes || 'Routine follow-up call'}</p>
-            ${qaBadges ? `<div class="flex flex-wrap gap-1 pt-1">${qaBadges}</div>` : ''}
-            ${recordingPlayer}
-          </div>
-        `;
-      }).join('');
+            let followupInfo = '';
+            if (t.nextFollowup) {
+              followupInfo = `
+                <div class="mt-1.5 text-[10px] text-amber-400/90 flex items-center gap-1">
+                  <i data-lucide="clock" class="w-3 h-3"></i>
+                  <span>Scheduled Follow-up: <strong>${t.nextFollowup}</strong></span>
+                </div>
+              `;
+            }
+
+            return `
+              <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1.5 hover:border-slate-700 transition">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-500/10 text-brand-400 border border-brand-500/20">
+                      Call #${timeline.length - idx} • ${t.callOutcome || 'Connected'}
+                    </span>
+                    <span class="text-[10px] text-slate-400 font-medium">by <strong>${t.callerUser || 'caller'}</strong></span>
+                  </div>
+                  <span class="text-[10px] text-slate-400 font-mono">
+                    ${new Date(t.timestamp).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </span>
+                </div>
+
+                ${t.notes ? `<p class="text-xs text-white font-medium pl-1 border-l-2 border-brand-500">${t.notes}</p>` : ''}
+                ${qaHtml}
+                ${followupInfo}
+                ${recordingPlayer}
+              </div>
+            `;
+          }).join('');
+        }
+      }
 
     } catch (err) {
-      timelineList.innerHTML = `<p class="text-rose-400 text-center py-2">Failed to load history</p>`;
+      if (timelineList) timelineList.innerHTML = `<p class="text-rose-400 text-center py-2">Failed to load history: ${err.message}</p>`;
+      if (daysTbody) daysTbody.innerHTML = `<tr><td colspan="4" class="text-center py-3 text-rose-400">Failed to load 7-day sales.</td></tr>`;
     }
+
+    if (window.lucide) lucide.createIcons();
   },
 
   async submitCallLog() {
@@ -406,9 +506,16 @@ const Calling = {
 
     // Collect Dynamic QA responses
     const qaResponses = {};
+    let remarkText = '';
     this.cachedQuestions.forEach(q => {
       const el = document.getElementById(`dyn-${q.id}`);
-      if (el) qaResponses[q.id] = el.value;
+      if (el) {
+        const val = el.value.trim();
+        qaResponses[q.text] = val;
+        if (q.text.toLowerCase().includes('remark') && val) {
+          remarkText = val;
+        }
+      }
     });
 
     // Check for Audio File upload or Live In-Browser Recording
@@ -443,7 +550,7 @@ const Calling = {
       audioFileName: audioFileName,
       nextFollowupDateTime: nextFollowupDateTime,
       markConverted: markConverted,
-      notes: qaResponses['q6'] || `${outcome} - Followup scheduled`
+      notes: remarkText || `${outcome} - Followup scheduled`
     };
 
     btn.disabled = true;

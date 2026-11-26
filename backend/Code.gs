@@ -112,7 +112,7 @@ function menuCleanAndResync() {
   const fromStr = Utilities.formatDate(past30, 'Asia/Kolkata', 'dd-MM-yyyy');
   const toStr = Utilities.formatDate(now, 'Asia/Kolkata', 'dd-MM-yyyy');
 
-  SpreadsheetApp.getActiveSpreadsheet().toast('Clearing old data and fetching clean MIS records with correct dates...', 'Clean Resyncing', 15);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Clearing old data and fetching clean MIS records with correct dates & parent info...', 'Clean Resyncing', 15);
   const result = cleanAndResyncDatabase(fromStr, toStr);
 
   ui.alert(
@@ -121,12 +121,12 @@ function menuCleanAndResync() {
     `• Records Processed: ${result.totalRowsProcessed}\n` +
     `• Clean Transactions Added: ${result.recordsAdded}\n` +
     `• Active Clients: ${result.clientsCount}\n\n` +
-    `Yesterday Sales and Monthly Sales are now completely accurate!`
+    `Yesterday Sales and Parent Distributor columns are now completely accurate!`
   );
 }
 
 /**
- * Clears old sales and re-syncs fresh, deduplicated records with proper dates
+ * Clears old sales and re-syncs fresh, deduplicated records with proper dates & parent distributor details
  */
 function cleanAndResyncDatabase(fromDate, toDate, specificServices) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -154,6 +154,7 @@ function cleanAndResyncDatabase(fromDate, toDate, specificServices) {
  * ------------------------------------------------------------------------------
  * 3. MASTER ZAPURSE API SYNC FUNCTION
  * Fetches MIS Report CSV for all service types & auto-updates Sales & Clients!
+ * Captures Parent_Name & Parent_Mobile for distribution hierarchy tracking!
  * ------------------------------------------------------------------------------
  */
 function syncAllZapurseServices(fromDate, toDate, specificServices) {
@@ -207,7 +208,9 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
         yearlySales: Number(clientsData[i][6]) || 0,
         followupsCount: Number(clientsData[i][7]) || 0,
         leadStatus: clientsData[i][8],
-        primaryService: clientsData[i][9]
+        primaryService: clientsData[i][9],
+        parentName: clientsData[i][11] || '',
+        parentMobile: clientsData[i][12] || ''
       });
     }
   }
@@ -247,6 +250,8 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
         let clientId = colMap.clientId !== -1 && row[colMap.clientId] ? String(row[colMap.clientId]).trim() : '';
         let clientName = colMap.clientName !== -1 && row[colMap.clientName] ? String(row[colMap.clientName]).trim() : '';
         let mobile = colMap.mobile !== -1 && row[colMap.mobile] ? String(row[colMap.mobile]).trim() : '';
+        let parentName = colMap.parentName !== -1 && row[colMap.parentName] ? String(row[colMap.parentName]).trim() : '';
+        let parentMobile = colMap.parentMobile !== -1 && row[colMap.parentMobile] ? String(row[colMap.parentMobile]).trim() : '';
         let volume = colMap.volume !== -1 && row[colMap.volume] ? (Number(String(row[colMap.volume]).replace(/[^0-9.-]+/g, '')) || 0) : 0;
         let commission = colMap.commission !== -1 && row[colMap.commission] ? (Number(String(row[colMap.commission]).replace(/[^0-9.-]+/g, '')) || 0) : 0;
         let txnCount = colMap.txnCount !== -1 && row[colMap.txnCount] ? (Number(row[colMap.txnCount]) || 1) : 1;
@@ -266,7 +271,7 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
           clientId = mobile ? `CL_${mobile}` : `CL_${serviceType}_${r}`;
         }
 
-        // Reuse client details if already in clientsMap
+        // Reuse client details if already known in clientsMap
         if (clientsMap.has(clientId)) {
           const existingC = clientsMap.get(clientId);
           if (!clientName && existingC.clientName && !existingC.clientName.startsWith('Merchant ')) {
@@ -274,6 +279,12 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
           }
           if (!mobile && existingC.mobile) {
             mobile = existingC.mobile;
+          }
+          if (!parentName && existingC.parentName) {
+            parentName = existingC.parentName;
+          }
+          if (!parentMobile && existingC.parentMobile) {
+            parentMobile = existingC.parentMobile;
           }
         }
 
@@ -292,14 +303,16 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
         }
         existingTxnIds.add(txnId);
 
-        // Prepare row for Sales_Data:
-        // ['Txn_ID', 'Date', 'Client_ID', 'Client_Name', 'Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp']
+        // Prepare row for Sales_Data (12 Columns):
+        // ['Txn_ID', 'Date', 'Kiosk_ID', 'Client_Name', 'Mobile', 'Parent_Name', 'Parent_Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp']
         rowsToAppendSales.push([
           txnId,
           formattedDate,
           clientId,
           clientName,
           mobile,
+          parentName || '-',
+          parentMobile || '-',
           serviceType,
           txnCount,
           volume,
@@ -318,6 +331,8 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
             c.lastTxnDate = formattedDate;
           }
           if (!c.mobile && mobile) c.mobile = mobile;
+          if (!c.parentName && parentName) c.parentName = parentName;
+          if (!c.parentMobile && parentMobile) c.parentMobile = parentMobile;
           if ((!c.clientName || c.clientName.startsWith('Merchant ')) && clientName && !clientName.startsWith('Merchant ')) {
             c.clientName = clientName;
           }
@@ -333,7 +348,9 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
             yearlySales: volume,
             followupsCount: 0,
             leadStatus: 'Active',
-            primaryService: serviceType
+            primaryService: serviceType,
+            parentName: parentName,
+            parentMobile: parentMobile
           });
         }
       }
@@ -412,6 +429,7 @@ function fetchZapurseMISReportCsv(serviceType, fromDate, toDate) {
 /**
  * Dynamic Column Header Mapping for Flexible Zapurse MIS Reports
  * Handles ZAPAEPS, ZAPUPI, ZAPRECHARGE, RISLUPI, RISLDMT, RISLRECHARGE headers
+ * Captures Parent_Name, ParentMobileNo, KIOSKCODE, Amount, Count, DateTime
  */
 function mapCsvHeaders(headers) {
   const findIdx = (regex) => headers.findIndex(h => regex.test(h.replace(/[^a-z0-9]/g, '')));
@@ -419,9 +437,11 @@ function mapCsvHeaders(headers) {
   return {
     txnId: findIdx(/^(txnid|transactionid|rrn|referenceno|refno|id)$/),
     date: findIdx(/^(transactiondatetime|txndatetime|txndate|transactiondate|date|createdon|createdat|timestamp|time)$/),
-    clientId: findIdx(/^(kioskcode|agentcode|retailerid|clientid|merchantid|agentid|customercode|userid|outletcode)$/),
+    clientId: findIdx(/^(kioskcode|kioskid|agentcode|retailerid|clientid|merchantid|agentid|customercode|userid|outletcode)$/),
     clientName: findIdx(/^(clientname|agentname|retailername|merchantname|name|outletname)$/),
-    mobile: findIdx(/^(clientmobileno|mobile|mobileno|phone|contact|agentmobile|customermobile)$/),
+    mobile: findIdx(/^(clientmobileno|clientmobile|mobile|mobileno|phone|contact|agentmobile|customermobile)$/),
+    parentName: findIdx(/^(parentname|distributorname|distributor|parent|supername)$/),
+    parentMobile: findIdx(/^(parentmobileno|parentmobile|distributormobile|distributorphoneno|supermobile)$/),
     volume: findIdx(/^(amount|volume|txnamount|totalamount|transactionamount|grossamount)$/),
     commission: findIdx(/^(commissionamount|commission|comm|margin|retailercommission|revenue)$/),
     txnCount: findIdx(/^(totalnumberoftransaction|totalnumberoftransactions|count|txncount|numberoftxns)$/),
@@ -507,6 +527,14 @@ function syncClientsMasterTable(clientsSheet, clientsMap) {
         existingRows[rIdx][6] = c.yearlySales;
         hasUpdates = true;
       }
+      if (c.parentName && existingRows[rIdx][11] !== c.parentName) {
+        existingRows[rIdx][11] = c.parentName;
+        hasUpdates = true;
+      }
+      if (c.parentMobile && existingRows[rIdx][12] !== c.parentMobile) {
+        existingRows[rIdx][12] = c.parentMobile;
+        hasUpdates = true;
+      }
     } else if (!c.row) {
       // New Client: Queue for batch append
       rowsToAppend.push([
@@ -520,7 +548,9 @@ function syncClientsMasterTable(clientsSheet, clientsMap) {
         c.followupsCount,
         c.leadStatus,
         c.primaryService,
-        new Date()
+        new Date(),
+        c.parentName || '-',
+        c.parentMobile || '-'
       ]);
     }
   });
@@ -588,7 +618,7 @@ function ensureSheetsExist(ss) {
     usersSheet.appendRow(['USR004', 'Amit Patel', 'amit', 'amit123', 'Caller', 'RISLDMT,RISLUPI,RISLRECHARGE', 'DASHBOARD,CALLING', 'Active', new Date()]);
   }
 
-  // 2. Admin_Config
+  // 2. Admin_Config (Exact User-Requested Questionnaire)
   let configSheet = getOrCreateSheet(ss, TABS.CONFIG);
   if (configSheet.getLastRow() === 0) {
     configSheet.appendRow(['Key', 'Value', 'Description', 'Updated_At']);
@@ -597,29 +627,69 @@ function ensureSheetsExist(ss) {
     configSheet.appendRow(['Yearly_Min_Sales_Condition', '50000', 'Minimum yearly sales threshold in Rupees', new Date()]);
     configSheet.appendRow(['Services_List', JSON.stringify(ZAPURSE_CONFIG.SERVICE_TYPES), 'Active Zapurse services list', new Date()]);
     
-    const sampleQuestions = [
-      { id: 'q1', text: 'Call Connect Status', type: 'select', options: ['Connected with Owner', 'Connected with Staff', 'Call Later', 'Wrong Number'] },
-      { id: 'q2', text: 'Reason for Drop in Transactions', type: 'select', options: ['Server/Technical Issues', 'Margin/Commission Issue', 'Switched to Competitor', 'Low Customer Footfall', 'Banking Portal Blocked', 'Other'] },
-      { id: 'q3', text: 'Competitor Portal (If applicable)', type: 'text', placeholder: 'e.g. Spice Money, PayNearby, RNFI' },
-      { id: 'q4', text: 'Customer Satisfaction Rating', type: 'select', options: ['5 - Highly Satisfied', '4 - Satisfied', '3 - Neutral', '2 - Dissatisfied', '1 - Very Unhappy'] },
-      { id: 'q5', text: 'Commitment for Next Txn', type: 'select', options: ['Will start today', 'Within 2-3 days', 'Next week', 'Not interested'] },
-      { id: 'q6', text: 'Specific Remarks / Feedback', type: 'textarea', placeholder: 'Detailed call summary...' }
+    const standardQuestions = [
+      { 
+        id: 'q1', 
+        text: 'Call Status', 
+        type: 'select', 
+        options: ['Connected with Owner', 'Connected with Staff', 'Call Later / Busy', 'Ringing No Response (RNR)', 'Switched Off / Not Reachable', 'Wrong Number'] 
+      },
+      { 
+        id: 'q2', 
+        text: 'Convince Status', 
+        type: 'select', 
+        options: [
+          'Fully Convinced (Will start transactions today)', 
+          'Agreed (Within 2-3 days)', 
+          'Follow-up Required (Call scheduled)', 
+          'Needs Margin / Commission Rate Revision', 
+          'Technical / Server Issue (Support Needed)', 
+          'Not Convinced (Prefers Competitor Portal)', 
+          'Not Interested / Shop Closed'
+        ] 
+      },
+      { 
+        id: 'q3', 
+        text: 'Reason for Drop in Transactions', 
+        type: 'select', 
+        options: [
+          'Margin / Commission Issue', 
+          'Banking Portal / Server Down Issue', 
+          'Switched to Competitor (Spice Money, PayNearby, RNFI)', 
+          'Bank Account Freeze / Blocked', 
+          'Low Customer Footfall', 
+          'Regular Transactor (No Issue)', 
+          'Other'
+        ] 
+      },
+      { 
+        id: 'q4', 
+        text: 'Remark (Call Discussion Summary)', 
+        type: 'textarea', 
+        placeholder: 'Retailer se kya baat hui, kya samasya batayi, kya commitment diya...' 
+      },
+      { 
+        id: 'q5', 
+        text: 'Five References (Retailer Referrals)', 
+        type: 'textarea', 
+        placeholder: 'Retailer ke 5 mitra retailers ke Name aur Mobile No:\n1. Name - Mobile\n2. Name - Mobile\n3. Name - Mobile\n4. Name - Mobile\n5. Name - Mobile' 
+      }
     ];
-    configSheet.appendRow(['Dynamic_Questions', JSON.stringify(sampleQuestions), 'Dynamic caller questionnaire form', new Date()]);
+    configSheet.appendRow(['Dynamic_Questions', JSON.stringify(standardQuestions), 'Dynamic caller questionnaire form', new Date()]);
   }
 
   // 3. Clients_Master
   let clientsSheet = getOrCreateSheet(ss, TABS.CLIENTS);
   if (clientsSheet.getLastRow() === 0) {
-    clientsSheet.appendRow(['Client_ID', 'Client_Name', 'Mobile', 'City_State', 'Assigned_User', 'Last_Txn_Date', 'Yearly_Sales', 'Total_Followups_Count', 'Lead_Status', 'Primary_Service', 'Created_At']);
-    clientsSheet.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+    clientsSheet.appendRow(['Client_ID', 'Client_Name', 'Mobile', 'City_State', 'Assigned_User', 'Last_Txn_Date', 'Yearly_Sales', 'Total_Followups_Count', 'Lead_Status', 'Primary_Service', 'Created_At', 'Parent_Name', 'Parent_Mobile']);
+    clientsSheet.getRange(1, 1, 1, 13).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
   }
 
-  // 4. Sales_Data
+  // 4. Sales_Data (12 Columns with Parent Distributor Hierarchy)
   let salesSheet = getOrCreateSheet(ss, TABS.SALES);
   if (salesSheet.getLastRow() === 0) {
-    salesSheet.appendRow(['Txn_ID', 'Date', 'Client_ID', 'Client_Name', 'Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp']);
-    salesSheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+    salesSheet.appendRow(['Txn_ID', 'Date', 'Kiosk_ID', 'Client_Name', 'Mobile', 'Parent_Name', 'Parent_Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp']);
+    salesSheet.getRange(1, 1, 1, 12).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
   }
 
   // 5. Calling_Logs
@@ -871,6 +941,15 @@ function getInitialDataHandler(params) {
   let monthlyChartVolumes = new Array(12).fill(0);
   let monthlyChartTxns = new Array(12).fill(0);
 
+  // Dynamic Header Column Mapping for Sales_Data (supports both 10 and 12-col schemas)
+  const salesHeaders = salesData.length > 0 ? salesData[0].map(h => String(h).trim().toLowerCase()) : [];
+  const pNameIdx = salesHeaders.indexOf('parent_name');
+  const pMobIdx = salesHeaders.indexOf('parent_mobile');
+  const svcIdx = salesHeaders.indexOf('service_name') !== -1 ? salesHeaders.indexOf('service_name') : (pNameIdx !== -1 ? 7 : 5);
+  const cntIdx = salesHeaders.indexOf('txn_count') !== -1 ? salesHeaders.indexOf('txn_count') : (pNameIdx !== -1 ? 8 : 6);
+  const volIdx = salesHeaders.indexOf('volume_amount') !== -1 ? salesHeaders.indexOf('volume_amount') : (pNameIdx !== -1 ? 9 : 7);
+  const commIdx = salesHeaders.indexOf('commission_revenue') !== -1 ? salesHeaders.indexOf('commission_revenue') : (pNameIdx !== -1 ? 10 : 8);
+
   // High-Speed Loop over Sales Data
   for (let i = 1; i < salesData.length; i++) {
     const row = salesData[i];
@@ -891,8 +970,8 @@ function getInitialDataHandler(params) {
       month = parseInt(dStr.substring(5, 7), 10) - 1;
     }
 
-    const txnCount = Number(row[6]) || 0;
-    const vol = Number(row[7]) || 0;
+    const txnCount = Number(row[cntIdx]) || 1;
+    const vol = Number(row[volIdx]) || 0;
 
     if (year === curYear) {
       yearlySales.volume += vol;
@@ -959,7 +1038,9 @@ function getInitialDataHandler(params) {
       yearlySales: Number(row[6]) || 0,
       followupsCount: Number(row[7]) || 0,
       status: row[8],
-      primaryService: row[9] || 'General'
+      primaryService: row[9] || 'General',
+      parentName: row[11] || '-',
+      parentMobile: row[12] || '-'
     });
   }
 
@@ -968,17 +1049,19 @@ function getInitialDataHandler(params) {
     .sort((a, b) => a.yearlySales - b.yearlySales)
     .slice(0, 5);
 
-  const recentRows = salesData.slice(1).slice(-20).reverse();
+  const recentRows = salesData.slice(1).slice(-100).reverse();
   const recentSales = recentRows.map(r => ({
     txnId: r[0],
     date: fastFormatDate(r[1]),
     clientId: r[2],
     clientName: r[3],
     mobile: r[4],
-    serviceName: r[5],
-    txnCount: r[6],
-    volume: r[7],
-    commission: r[8]
+    parentName: pNameIdx !== -1 ? (r[pNameIdx] || '-') : '-',
+    parentMobile: pMobIdx !== -1 ? (r[pMobIdx] || '-') : '-',
+    serviceName: r[svcIdx] || 'General',
+    txnCount: Number(r[cntIdx]) || 1,
+    volume: Number(r[volIdx]) || 0,
+    commission: Number(r[commIdx]) || 0
   }));
 
   let services = ZAPURSE_CONFIG.SERVICE_TYPES;
@@ -1035,6 +1118,8 @@ function getClientsHandler(params) {
     const followupsCount = Number(row[7]) || 0;
     const status = String(row[8]);
     const primaryService = String(row[9] || 'General');
+    const parentName = row[11] || '-';
+    const parentMobile = row[12] || '-';
 
     let inactiveDays = 999;
     let isTodayTxn = false;
@@ -1064,7 +1149,7 @@ function getClientsHandler(params) {
     if (serviceFilter !== 'ALL' && primaryService !== serviceFilter) continue;
 
     if (searchQuery) {
-      const combined = `${clientId} ${clientName} ${mobile} ${cityState}`.toLowerCase();
+      const combined = `${clientId} ${clientName} ${mobile} ${parentName} ${cityState}`.toLowerCase();
       if (!combined.includes(searchQuery)) continue;
     }
 
@@ -1079,7 +1164,9 @@ function getClientsHandler(params) {
       yearlySales: yearlySales,
       followupsCount: followupsCount,
       status: status,
-      primaryService: primaryService
+      primaryService: primaryService,
+      parentName: parentName,
+      parentMobile: parentMobile
     });
 
     if (results.length >= 400) break; // Fast paging cap for smooth UI
@@ -1089,6 +1176,9 @@ function getClientsHandler(params) {
   return { total: results.length, clients: results };
 }
 
+/**
+ * Enhanced Client History: returns Timeline, Transactions, and Day-by-Day 7-Day Sales Breakdown
+ */
 function getClientHistoryHandler(clientId) {
   if (!clientId) return { error: 'clientId required' };
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1110,12 +1200,15 @@ function getClientHistoryHandler(clientId) {
         yearlySales: Number(clientsData[i][6]) || 0,
         followupsCount: Number(clientsData[i][7]) || 0,
         status: clientsData[i][8],
-        primaryService: clientsData[i][9]
+        primaryService: clientsData[i][9],
+        parentName: clientsData[i][11] || '',
+        parentMobile: clientsData[i][12] || ''
       };
       break;
     }
   }
 
+  // 1. Calling Timeline & Interactions
   let timeline = [];
   if (callsSheet) {
     const callsData = callsSheet.getDataRange().getValues();
@@ -1138,25 +1231,84 @@ function getClientHistoryHandler(clientId) {
   }
   timeline.reverse();
 
+  // 2. Client Transactions List
   let transactions = [];
   if (salesSheet) {
     const salesData = salesSheet.getDataRange().getValues();
+    const headers = salesData.length > 0 ? salesData[0].map(h => String(h).trim().toLowerCase()) : [];
+    const pNameIdx = headers.indexOf('parent_name');
+    const pMobIdx = headers.indexOf('parent_mobile');
+    const svcIdx = headers.indexOf('service_name') !== -1 ? headers.indexOf('service_name') : (pNameIdx !== -1 ? 7 : 5);
+    const cntIdx = headers.indexOf('txn_count') !== -1 ? headers.indexOf('txn_count') : (pNameIdx !== -1 ? 8 : 6);
+    const volIdx = headers.indexOf('volume_amount') !== -1 ? headers.indexOf('volume_amount') : (pNameIdx !== -1 ? 9 : 7);
+    const commIdx = headers.indexOf('commission_revenue') !== -1 ? headers.indexOf('commission_revenue') : (pNameIdx !== -1 ? 10 : 8);
+
     for (let i = 1; i < salesData.length; i++) {
       if (String(salesData[i][2]) === String(clientId)) {
+        const rowPName = pNameIdx !== -1 ? salesData[i][pNameIdx] : '';
+        const rowPMob = pMobIdx !== -1 ? salesData[i][pMobIdx] : '';
+        if (clientInfo && !clientInfo.parentName && rowPName) clientInfo.parentName = rowPName;
+        if (clientInfo && !clientInfo.parentMobile && rowPMob) clientInfo.parentMobile = rowPMob;
+
         transactions.push({
           txnId: salesData[i][0],
           date: fastFormatDate(salesData[i][1]),
-          serviceName: salesData[i][5],
-          txnCount: salesData[i][6],
-          volume: salesData[i][7],
-          commission: salesData[i][8]
+          clientId: salesData[i][2],
+          clientName: salesData[i][3],
+          mobile: salesData[i][4],
+          parentName: rowPName || '-',
+          parentMobile: rowPMob || '-',
+          serviceName: salesData[i][svcIdx] || 'General',
+          txnCount: Number(salesData[i][cntIdx]) || 1,
+          volume: Number(salesData[i][volIdx]) || 0,
+          commission: Number(salesData[i][commIdx]) || 0
         });
       }
     }
   }
   transactions.reverse();
 
-  return { client: clientInfo, timeline: timeline, transactions: transactions };
+  // 3. Day-by-Day 7-Day Performance Calculation (Today down to 6 days ago)
+  const now = new Date();
+  const past7Days = [];
+  for (let d = 0; d < 7; d++) {
+    const dt = new Date();
+    dt.setDate(now.getDate() - d);
+    const dateStr = Utilities.formatDate(dt, 'Asia/Kolkata', 'yyyy-MM-dd');
+    const dayLabel = d === 0 ? 'Today' : (d === 1 ? 'Yesterday' : Utilities.formatDate(dt, 'Asia/Kolkata', 'dd MMM (EEE)'));
+    past7Days.push({
+      date: dateStr,
+      label: dayLabel,
+      volume: 0,
+      count: 0,
+      services: []
+    });
+  }
+
+  let total7DayVolume = 0;
+  let total7DayTxns = 0;
+
+  transactions.forEach(t => {
+    const match = past7Days.find(d => d.date === t.date);
+    if (match) {
+      match.volume += Number(t.volume) || 0;
+      match.count += Number(t.txnCount) || 0;
+      if (t.serviceName && !match.services.includes(t.serviceName)) {
+        match.services.push(t.serviceName);
+      }
+      total7DayVolume += Number(t.volume) || 0;
+      total7DayTxns += Number(t.txnCount) || 0;
+    }
+  });
+
+  return {
+    client: clientInfo,
+    timeline: timeline,
+    transactions: transactions,
+    last7DaysSales: past7Days,
+    total7DayVolume: total7DayVolume,
+    total7DayTxns: total7DayTxns
+  };
 }
 
 function saveCallLogHandler(payload) {
@@ -1451,7 +1603,9 @@ function getReportsHandler(params) {
         service: cData[i][9],
         yearlySales: Number(cData[i][6]) || 0,
         followupsCount: Number(cData[i][7]) || 0,
-        status: cData[i][8]
+        status: cData[i][8],
+        parentName: cData[i][11] || '-',
+        parentMobile: cData[i][12] || '-'
       });
     }
   }

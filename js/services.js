@@ -67,22 +67,25 @@ const Services = {
         `).join('');
       }
 
-      // Render Service Transactions Table
+      // Render Service Transactions Table (Updated with Kiosk ID, Parent Name & Mobile)
       const tbody = document.getElementById('service-sales-tbody');
       if (sales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500">No records found for ${serviceName}.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-500">No records found for ${serviceName}.</td></tr>`;
       } else {
         tbody.innerHTML = sales.map(item => `
           <tr class="hover:bg-slate-800/40 transition">
-            <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${item.txnId}</td>
-            <td class="py-3 px-3.5 text-slate-400">${item.date}</td>
+            <td class="py-3 px-3.5 text-slate-300 font-mono whitespace-nowrap">${item.date}</td>
+            <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${item.clientId}</td>
             <td class="py-3 px-3.5 font-bold text-white">${item.clientName}</td>
-            <td class="py-3 px-3.5 text-slate-400">${item.mobile}</td>
-            <td class="py-3 px-3.5 text-right font-mono">${item.txnCount}</td>
+            <td class="py-3 px-3.5 text-slate-300 font-mono">${item.mobile || '-'}</td>
+            <td class="py-3 px-3.5 text-slate-300">${item.parentName || '-'}</td>
+            <td class="py-3 px-3.5 text-slate-400 font-mono">${item.parentMobile || '-'}</td>
+            <td class="py-3 px-3.5 text-right font-mono font-semibold">${item.txnCount}</td>
             <td class="py-3 px-3.5 text-right font-mono font-bold text-white">₹${Number(item.volume).toLocaleString('en-IN')}</td>
             <td class="py-3 px-3.5 text-center">
-              <button onclick="Calling.openCallModalById('${item.clientId}')" class="px-2 py-1 bg-brand-600/20 hover:bg-brand-600 text-brand-400 hover:text-white rounded-lg text-xs font-semibold transition">
-                Call
+              <button onclick="Calling.openCallModalById('${item.clientId}')" class="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 rounded-lg text-xs font-semibold transition flex items-center gap-1 mx-auto">
+                <i data-lucide="phone" class="w-3 h-3"></i>
+                <span>Call</span>
               </button>
             </td>
           </tr>

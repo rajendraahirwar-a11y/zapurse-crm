@@ -23,14 +23,61 @@ const Config = {
     'RISLRECHARGE'
   ],
 
-  // Default Dynamic Questions for Calling Script
+  // Default Dynamic Questions for Calling Script (Configured to User Exact Requirements)
   DEFAULT_QUESTIONS: [
-    { id: 'q1', text: 'Call Connect Status', type: 'select', options: ['Connected with Owner', 'Connected with Staff', 'Call Later', 'Wrong Number'] },
-    { id: 'q2', text: 'Reason for Drop in Transactions', type: 'select', options: ['Server/Technical Issues', 'Margin/Commission Issue', 'Switched to Competitor', 'Low Customer Footfall', 'Banking Portal Blocked', 'Other'] },
-    { id: 'q3', text: 'Competitor Portal (If applicable)', type: 'text', placeholder: 'e.g. Spice Money, PayNearby, RNFI' },
-    { id: 'q4', text: 'Customer Satisfaction Rating', type: 'select', options: ['5 - Highly Satisfied', '4 - Satisfied', '3 - Neutral', '2 - Dissatisfied', '1 - Very Unhappy'] },
-    { id: 'q5', text: 'Commitment for Next Txn', type: 'select', options: ['Will start today', 'Within 2-3 days', 'Next week', 'Not interested'] },
-    { id: 'q6', text: 'Specific Remarks / Feedback', type: 'textarea', placeholder: 'Detailed call summary & merchant feedback...' }
+    { 
+      id: 'q1', 
+      text: 'Call Status', 
+      type: 'select', 
+      options: [
+        'Connected with Owner', 
+        'Connected with Staff', 
+        'Call Later / Busy', 
+        'Ringing No Response (RNR)', 
+        'Switched Off / Not Reachable', 
+        'Wrong Number'
+      ] 
+    },
+    { 
+      id: 'q2', 
+      text: 'Convince Status', 
+      type: 'select', 
+      options: [
+        'Fully Convinced (Will start transactions today)', 
+        'Agreed (Within 2-3 days)', 
+        'Follow-up Required (Call scheduled)', 
+        'Needs Margin / Commission Rate Revision', 
+        'Technical / Server Issue (Support Needed)', 
+        'Not Convinced (Prefers Competitor Portal)', 
+        'Not Interested / Shop Closed'
+      ] 
+    },
+    { 
+      id: 'q3', 
+      text: 'Reason for Drop in Transactions', 
+      type: 'select', 
+      options: [
+        'Margin / Commission Issue', 
+        'Banking Portal / Server Down Issue', 
+        'Switched to Competitor (Spice Money, PayNearby, RNFI)', 
+        'Bank Account Freeze / Blocked', 
+        'Low Customer Footfall', 
+        'Regular Transactor (No Issue)', 
+        'Other'
+      ] 
+    },
+    { 
+      id: 'q4', 
+      text: 'Remark (Call Discussion Summary)', 
+      type: 'textarea', 
+      placeholder: 'Retailer se kya baat hui, kya samasya batayi, kya commitment diya...' 
+    },
+    { 
+      id: 'q5', 
+      text: 'Five References (Retailer Referrals)', 
+      type: 'textarea', 
+      placeholder: 'Retailer ke 5 mitra retailers ke Name aur Mobile No:\n1. Name - Mobile\n2. Name - Mobile\n3. Name - Mobile\n4. Name - Mobile\n5. Name - Mobile' 
+    }
   ],
 
   // System Rule Defaults
