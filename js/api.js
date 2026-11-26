@@ -28,8 +28,11 @@ const Api = {
       const data = await response.json();
       return data;
     } catch (err) {
-      console.warn('Live API request failed, falling back to local dataset:', err);
-      return this.handleDemoGet(action, params);
+      console.warn('Live API request failed:', err);
+      if (Config.isDemoMode()) {
+        return this.handleDemoGet(action, params);
+      }
+      throw err;
     }
   },
 
@@ -55,8 +58,11 @@ const Api = {
       const data = await response.json();
       return data;
     } catch (err) {
-      console.warn('Live API POST failed, executing locally:', err);
-      return this.handleDemoPost(action, payload);
+      console.warn('Live API POST failed:', err);
+      if (Config.isDemoMode()) {
+        return this.handleDemoPost(action, payload);
+      }
+      throw err;
     }
   },
 
