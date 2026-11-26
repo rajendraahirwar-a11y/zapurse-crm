@@ -148,6 +148,14 @@ const Auth = {
         adminNavLink.classList.add('hidden');
       }
     }
+    const mobileMoreAdmin = document.getElementById('mobile-more-admin-link');
+    if (mobileMoreAdmin) {
+      if (this.isAdmin()) {
+        mobileMoreAdmin.classList.remove('hidden');
+      } else {
+        mobileMoreAdmin.classList.add('hidden');
+      }
+    }
 
     // Initialize App & Modules
     App.onUserLoggedIn();

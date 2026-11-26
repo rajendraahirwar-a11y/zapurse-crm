@@ -72,7 +72,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/styles.css?v=15">
+  <link rel="stylesheet" href="css/styles.css?v=16">
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased h-screen overflow-hidden flex flex-col selection:bg-brand-600 selection:text-white">
 
@@ -302,7 +302,7 @@
 
 
       <!-- MAIN CONTENT VIEWPORTS -->
-      <main class="flex-1 overflow-y-auto bg-slate-950 p-4 lg:p-6 space-y-6 min-h-0">
+      <main class="flex-1 overflow-y-auto bg-slate-950 p-4 lg:p-6 space-y-6 min-h-0 pb-24 lg:pb-6">
 
         <!-- =====================================================================
              VIEW 1: ALL-IN-ONE HOME DASHBOARD
@@ -708,10 +708,10 @@
         <!-- =====================================================================
              VIEW 3: SMART CALLING ENGINE (CORE PRODUCTIVITY TOOL)
              ===================================================================== -->
-        <section id="view-calling" class="hidden space-y-6">
+        <section id="view-calling" class="hidden space-y-5">
           
-          <!-- Calling Header & Streamlined Filter Toolbar -->
-          <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+          <!-- Calling Header & Action Toolbar -->
+          <div class="p-5 sm:p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
@@ -721,12 +721,18 @@
                 <p class="text-xs text-slate-400">Automated retention calling queue driven by admin-configured inactivity & sales target rules.</p>
               </div>
 
-              <!-- Active Rule Badge & Today Toggle -->
+              <!-- Header Badges & Actions -->
               <div class="flex flex-wrap items-center gap-2">
                 <div id="calling-active-rule-pill" class="px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
                   <i data-lucide="target" class="w-3.5 h-3.5 text-amber-400"></i>
                   <span id="calling-active-rule-text">Rule: Inactivity & Target Retention</span>
                 </div>
+                
+                <button type="button" onclick="Calling.openPitchCalculator()" class="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer" title="Calculate Retailer Extra Earning">
+                  <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+                  <span>Earning Pitch Tool</span>
+                </button>
+
                 <div class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
                   <span class="text-xs text-slate-300 font-medium">Include Today:</span>
                   <label class="relative inline-flex items-center cursor-pointer">
@@ -737,7 +743,58 @@
               </div>
             </div>
 
-            <!-- Only Filter by Service and Search Client / Mobile (Streamlined) -->
+            <!-- 4 Summary KPI Mini Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-slate-800">
+              <!-- KPI 1: Target Queue -->
+              <div onclick="Calling.switchTab('today')" class="p-3 bg-slate-950/60 hover:bg-slate-950 border border-slate-800 rounded-xl transition cursor-pointer">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-semibold text-slate-400">Target Queue</span>
+                  <i data-lucide="users" class="w-4 h-4 text-sky-400"></i>
+                </div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <span id="kpi-target-queue" class="text-xl font-extrabold text-white">0</span>
+                  <span class="text-[10px] text-slate-500">merchants</span>
+                </div>
+              </div>
+
+              <!-- KPI 2: Completed Today -->
+              <div onclick="Calling.switchTab('completed')" class="p-3 bg-slate-950/60 hover:bg-slate-950 border border-slate-800 rounded-xl transition cursor-pointer">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-semibold text-slate-400">Calls Done Today</span>
+                  <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+                </div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <span id="kpi-today-done" class="text-xl font-extrabold text-emerald-400">0</span>
+                  <span class="text-[10px] text-slate-500">completed</span>
+                </div>
+              </div>
+
+              <!-- KPI 3: Pending / Rollover -->
+              <div onclick="Calling.switchTab('pending')" class="p-3 bg-slate-950/60 hover:bg-slate-950 border border-slate-800 rounded-xl transition cursor-pointer">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-semibold text-slate-400">Pending / Rollover</span>
+                  <i data-lucide="alert-circle" class="w-4 h-4 text-rose-400"></i>
+                </div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <span id="kpi-pending-calls" class="text-xl font-extrabold text-rose-400">0</span>
+                  <span class="text-[10px] text-slate-500">to call</span>
+                </div>
+              </div>
+
+              <!-- KPI 4: Follow-ups Due -->
+              <div onclick="Calling.switchTab('pending')" class="p-3 bg-slate-950/60 hover:bg-slate-950 border border-slate-800 rounded-xl transition cursor-pointer">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-semibold text-slate-400">Follow-ups Due</span>
+                  <i data-lucide="calendar-clock" class="w-4 h-4 text-amber-400"></i>
+                </div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <span id="kpi-followups-due" class="text-xl font-extrabold text-amber-400">0</span>
+                  <span class="text-[10px] text-slate-500">scheduled</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filter by Service, Search Client / Mobile, Refresh Queue -->
             <div class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <!-- Filter by Service -->
               <div class="sm:w-64">
@@ -756,7 +813,7 @@
 
               <!-- Search Client / Mobile -->
               <div class="flex-1">
-                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Search Client / Mobile</label>
+                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Search Client / Mobile / Parent</label>
                 <div class="relative">
                   <input type="text" id="calling-filter-search" onkeyup="Calling.handleSearch()" placeholder="Search merchant name, mobile, kiosk code, city..."
                     class="w-full pl-8 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
@@ -774,11 +831,48 @@
             </div>
           </div>
 
-          <!-- Calling Clients List / Table -->
-          <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+          <!-- Queue Navigation Sub-Tabs -->
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <button type="button" onclick="Calling.switchTab('today')" id="calling-tab-btn-today" 
+              class="calling-subtab active px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap bg-brand-500/15 text-brand-400 border border-brand-500/30">
+              <i data-lucide="phone-forwarded" class="w-3.5 h-3.5"></i>
+              <span>Today's Target Queue</span>
+              <span id="tab-badge-today" class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-brand-500/30 text-white">0</span>
+            </button>
+
+            <button type="button" onclick="Calling.switchTab('pending')" id="calling-tab-btn-pending" 
+              class="calling-subtab px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent transition flex items-center gap-2 whitespace-nowrap">
+              <i data-lucide="clock-4" class="w-3.5 h-3.5 text-rose-400"></i>
+              <span>Pending / Rollover Calls</span>
+              <span id="tab-badge-pending" class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-300">0</span>
+            </button>
+
+            <button type="button" onclick="Calling.switchTab('completed')" id="calling-tab-btn-completed" 
+              class="calling-subtab px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent transition flex items-center gap-2 whitespace-nowrap">
+              <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span>Completed Today</span>
+              <span id="tab-badge-completed" class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300">0</span>
+            </button>
+
+            <button type="button" onclick="Calling.switchTab('distributors')" id="calling-tab-btn-distributors" 
+              class="calling-subtab px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent transition flex items-center gap-2 whitespace-nowrap">
+              <i data-lucide="network" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span>Distributor Downline</span>
+              <span id="tab-badge-distributors" class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-sky-500/20 text-sky-300">0</span>
+            </button>
+
+            <button type="button" onclick="Calling.switchTab('leaderboard')" id="calling-tab-btn-leaderboard" 
+              class="calling-subtab px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent transition flex items-center gap-2 whitespace-nowrap">
+              <i data-lucide="trophy" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Caller Leaderboard</span>
+            </button>
+          </div>
+
+          <!-- Calling Clients List / Table Card -->
+          <div id="calling-table-container" class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <h3 id="calling-table-heading" class="text-sm font-bold text-white flex items-center gap-2">
                   <i data-lucide="users" class="w-4 h-4 text-brand-400"></i>
                   <span>Target Calling Queue</span>
                 </h3>
@@ -786,10 +880,10 @@
               </div>
             </div>
 
-            <!-- Queue Table: 7-Day Performance Focus -->
+            <!-- Queue Table -->
             <div class="overflow-x-auto border border-slate-800 rounded-xl">
               <table class="w-full text-left text-xs text-slate-300">
-                <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                <thead id="calling-thead" class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
                   <tr>
                     <th class="py-3 px-3.5">Client ID</th>
                     <th class="py-3 px-3.5">Merchant Name</th>
@@ -803,13 +897,17 @@
                   </tr>
                 </thead>
                 <tbody id="calling-queue-tbody" class="divide-y divide-slate-800/60 font-medium">
-                  <!-- Dynamically rendered -->
                   <tr>
                     <td colspan="9" class="text-center py-8 text-slate-500">Loading target calling queue...</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <!-- Caller Leaderboard View Container (Visible when Leaderboard tab is active) -->
+          <div id="calling-leaderboard-container" class="hidden p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
+            <!-- Dynamically rendered -->
           </div>
 
         </section>
@@ -1151,16 +1249,37 @@
       <!-- Modal Body (Scrollable) -->
       <div class="flex-1 overflow-y-auto p-5 space-y-5 text-xs modal-scroll-body">
 
-        <!-- Phone Dialer Card -->
-        <div class="p-4 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between">
+        <!-- Phone Dialer Card & Direct WhatsApp -->
+        <div class="p-4 bg-slate-950/80 border border-slate-800 rounded-xl flex flex-wrap items-center justify-between gap-3">
           <div>
             <span class="text-[10px] uppercase font-bold text-slate-400 block">Registered Mobile Number</span>
             <span id="call-modal-mobile" class="text-base font-bold text-white tracking-wider">+91 9829012345</span>
           </div>
-          <a id="call-modal-tel-link" href="tel:+919829012345" class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition">
-            <i data-lucide="phone-outgoing" class="w-4 h-4"></i>
-            <span>Dial Now</span>
-          </a>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="Calling.openWhatsAppFromModal()" class="py-2.5 px-3.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 rounded-xl font-bold flex items-center gap-1.5 transition cursor-pointer" title="Direct WhatsApp Message">
+              <i data-lucide="message-square" class="w-4 h-4"></i>
+              <span>WhatsApp</span>
+            </button>
+            <a id="call-modal-tel-link" href="tel:+919829012345" class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition">
+              <i data-lucide="phone-outgoing" class="w-4 h-4"></i>
+              <span>Dial Now</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Inline Pitch Calculator Quick Bar -->
+        <div class="p-3 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/20 rounded-xl flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="calculator" class="w-4 h-4 text-emerald-400"></i>
+            <div>
+              <span class="text-xs font-bold text-white">Merchant Earning Pitch Script</span>
+              <p class="text-[10px] text-slate-400">Calculate extra monthly earnings to convince retailer during call.</p>
+            </div>
+          </div>
+          <button type="button" onclick="Calling.openPitchCalculator(Calling.activeCallingClient?.clientName)" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
+            <span>Open Tool</span>
+            <i data-lucide="arrow-right" class="w-3 h-3"></i>
+          </button>
         </div>
 
         <!-- Previous 7 Days Day-by-Day Sales Table Widget -->
@@ -1365,17 +1484,308 @@
 
 
   <!-- =========================================================================
-       5. APPLICATION JAVASCRIPT MODULES (v15 Header Profile Polish & Badge Update)
+       EARNING PITCH CALCULATOR MODAL (For Telecallers to Pitch Inactive Merchants)
        ========================================================================= -->
-  <script src="js/config.js?v=15"></script>
-  <script src="js/api.js?v=15"></script>
-  <script src="js/auth.js?v=15"></script>
-  <script src="js/dashboard.js?v=15"></script>
-  <script src="js/services.js?v=15"></script>
-  <script src="js/calling.js?v=15"></script>
-  <script src="js/reports.js?v=15"></script>
-  <script src="js/admin.js?v=15"></script>
-  <script src="js/app.js?v=15"></script>
+  <div id="pitch-calc-modal" class="fixed inset-0 z-50 hidden">
+    <!-- Backdrop -->
+    <div onclick="Calling.closePitchCalculator()" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"></div>
+    
+    <!-- Modal Dialog -->
+    <div class="relative w-full max-w-lg max-h-[90vh] mx-auto my-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+      <!-- Header -->
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 backdrop-blur-md">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <i data-lucide="calculator" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Merchant Earning Pitch Tool</h3>
+            <p class="text-xs text-slate-400">Calculate extra monthly earnings to pitch inactive merchants.</p>
+          </div>
+        </div>
+        <button onclick="Calling.closePitchCalculator()" class="p-1.5 text-slate-400 hover:text-white rounded-lg transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-5 space-y-4 overflow-y-auto text-xs">
+        <!-- Target Merchant Info -->
+        <div class="p-3 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between">
+          <span class="text-slate-400">Target Merchant:</span>
+          <span id="pitch-calc-merchant-name" class="font-bold text-brand-400 text-sm">Retailer Partner</span>
+        </div>
+
+        <!-- Sliders / Inputs -->
+        <div class="space-y-3.5">
+          <!-- AEPS Daily Txns -->
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="font-semibold text-slate-300">Daily AEPS Cash Withdrawals</label>
+              <span id="calc-val-aeps" class="font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">5 txns/day</span>
+            </div>
+            <input type="range" id="calc-range-aeps" min="0" max="40" value="5" step="1" oninput="Calling.updatePitchCalculations()" class="w-full accent-emerald-500 cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-500">
+              <span>0 txns</span>
+              <span>Avg ₹8 Commission/Txn</span>
+              <span>40 txns</span>
+            </div>
+          </div>
+
+          <!-- Recharge Daily Txns -->
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="font-semibold text-slate-300">Daily Mobile & DTH Recharges</label>
+              <span id="calc-val-recharge" class="font-mono font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">10 txns/day</span>
+            </div>
+            <input type="range" id="calc-range-recharge" min="0" max="60" value="10" step="1" oninput="Calling.updatePitchCalculations()" class="w-full accent-sky-500 cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-500">
+              <span>0 txns</span>
+              <span>Avg ₹7.5 Commission/Txn (2.5%)</span>
+              <span>60 txns</span>
+            </div>
+          </div>
+
+          <!-- DMT Daily Volume -->
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="font-semibold text-slate-300">Daily Money Transfer (DMT) Volume</label>
+              <span id="calc-val-dmt" class="font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">₹15,000/day</span>
+            </div>
+            <input type="range" id="calc-range-dmt" min="0" max="100000" value="15000" step="5000" oninput="Calling.updatePitchCalculations()" class="w-full accent-indigo-500 cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-500">
+              <span>₹0</span>
+              <span>Avg 0.50% Retailer Margin</span>
+              <span>₹1 Lakh</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calculated Results Cards -->
+        <div class="grid grid-cols-3 gap-2.5 pt-2">
+          <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-center">
+            <span class="text-[10px] text-slate-400 block font-medium">Daily Profit</span>
+            <span id="calc-result-daily" class="text-base font-extrabold text-white font-mono">₹190</span>
+          </div>
+          <div class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center">
+            <span class="text-[10px] text-emerald-300 block font-bold uppercase">Monthly Extra</span>
+            <span id="calc-result-monthly" class="text-lg font-extrabold text-emerald-400 font-mono">₹5,700</span>
+          </div>
+          <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-center">
+            <span class="text-[10px] text-slate-400 block font-medium">Yearly Profit</span>
+            <span id="calc-result-yearly" class="text-base font-extrabold text-white font-mono">₹68,400</span>
+          </div>
+        </div>
+
+        <!-- Telecaller Call Script Pitch Card with 1-Click Copy -->
+        <div class="p-3.5 bg-slate-950/90 border border-slate-800 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span>Suggested Hindi Pitch Script (Call par bolne ke liye):</span>
+            </span>
+            <button type="button" onclick="Calling.copyPitchScript()" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+              Copy Script
+            </button>
+          </div>
+          <p id="pitch-script-text" class="text-xs text-slate-200 italic leading-relaxed">
+            "सर, अगर आप ZapPurse पोर्टल से रोज़ सिर्फ 5 कैश निकासी और 10 मोबाइल रिचार्ज करेंगे, तो महीने का ₹5,700 सीधा मुनाफा आपकी दुकान का बढ़ेगा! हमारी आईडी में हाईएस्ट सक्सेस रेट मिलता है।"
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
+        <button type="button" onclick="Calling.closePitchCalculator()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">
+          Close
+        </button>
+        <button type="button" onclick="Calling.sendPitchViaWhatsApp()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/30 flex items-center gap-1.5 transition">
+          <i data-lucide="message-square" class="w-4 h-4"></i>
+          <span>Send Pitch on WhatsApp</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       1-CLICK WHATSAPP QUICK MESSAGE SENDER MODAL
+       ========================================================================= -->
+  <div id="whatsapp-modal" class="fixed inset-0 z-50 hidden">
+    <!-- Backdrop -->
+    <div onclick="Calling.closeWhatsAppModal()" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"></div>
+    
+    <!-- Modal Dialog -->
+    <div class="relative w-full max-w-md max-h-[90vh] mx-auto my-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+      <!-- Header -->
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 backdrop-blur-md">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <i data-lucide="message-square" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Direct WhatsApp Message</h3>
+            <p class="text-xs text-slate-400">Send pre-formatted retention template to merchant.</p>
+          </div>
+        </div>
+        <button onclick="Calling.closeWhatsAppModal()" class="p-1.5 text-slate-400 hover:text-white rounded-lg transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-5 space-y-4 text-xs">
+        <!-- Recipient Info -->
+        <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between">
+          <div>
+            <span class="text-[10px] text-slate-500 uppercase font-bold block">Merchant</span>
+            <span id="wa-merchant-name" class="font-bold text-white text-sm">Retailer</span>
+          </div>
+          <div class="text-right">
+            <span class="text-[10px] text-slate-500 uppercase font-bold block">Mobile</span>
+            <span id="wa-merchant-mobile" class="font-mono font-bold text-emerald-400 text-sm">9876543210</span>
+          </div>
+        </div>
+
+        <!-- Template Selector -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Select Message Template</label>
+          <select id="wa-template-select" onchange="Calling.onWhatsAppTemplateChange()" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white">
+            <option value="retention">1. Inactive Sales Retention (हिंदी सहायता)</option>
+            <option value="device_help">2. Biometric Machine / Device Technical Error Help</option>
+            <option value="commission_boost">3. High Commission & Best Success Rate Offer</option>
+            <option value="custom">4. Custom Message (अपनी बात लिखें)</option>
+          </select>
+        </div>
+
+        <!-- Message Preview Textarea -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Message Preview</label>
+          <textarea id="wa-message-text" rows="5" class="w-full p-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white leading-relaxed focus:outline-none focus:ring-1 focus:ring-emerald-500"></textarea>
+          <span class="text-[10px] text-slate-500 mt-1 block">Clicking below will open WhatsApp Web or App directly without saving contact number.</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
+        <button type="button" onclick="Calling.closeWhatsAppModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">
+          Cancel
+        </button>
+        <button type="button" onclick="Calling.sendWhatsAppNow()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/30 flex items-center gap-1.5 transition">
+          <i data-lucide="send" class="w-4 h-4"></i>
+          <span>Open in WhatsApp</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MOBILE BOTTOM NAVIGATION BAR (Fixed at bottom on Mobile Screens: 4 Buttons)
+       ========================================================================= -->
+  <nav id="mobile-bottom-bar" class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-3 py-2 flex items-center justify-around shadow-2xl transition">
+    
+    <!-- 1. Home Dashboard -->
+    <button type="button" onclick="App.navigate('dashboard')" id="mobile-btn-dashboard" class="mobile-nav-btn flex flex-col items-center justify-center gap-1 flex-1 py-1 text-brand-400 font-semibold transition cursor-pointer">
+      <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+      <span class="text-[10px] tracking-tight">Home</span>
+    </button>
+
+    <!-- 2. Smart Calling (with badge) -->
+    <button type="button" onclick="App.navigate('calling')" id="mobile-btn-calling" class="mobile-nav-btn flex flex-col items-center justify-center gap-1 flex-1 py-1 text-slate-400 hover:text-white transition relative cursor-pointer">
+      <div class="relative">
+        <i data-lucide="phone-call" class="w-5 h-5"></i>
+        <span id="mobile-calling-badge" class="absolute -top-1 -right-2 px-1.5 py-0.2 bg-emerald-500 text-white rounded-full text-[9px] font-extrabold leading-none">0</span>
+      </div>
+      <span class="text-[10px] tracking-tight">Calling</span>
+    </button>
+
+    <!-- 3. Services Matrix -->
+    <button type="button" onclick="App.navigate('services', 'ZAPAEPS')" id="mobile-btn-services" class="mobile-nav-btn flex flex-col items-center justify-center gap-1 flex-1 py-1 text-slate-400 hover:text-white transition cursor-pointer">
+      <i data-lucide="layers" class="w-5 h-5"></i>
+      <span class="text-[10px] tracking-tight">Services</span>
+    </button>
+
+    <!-- 4. More Menu (Opens Bottom Sheet) -->
+    <button type="button" onclick="App.toggleMobileMoreSheet()" id="mobile-btn-more" class="mobile-nav-btn flex flex-col items-center justify-center gap-1 flex-1 py-1 text-slate-400 hover:text-white transition cursor-pointer">
+      <i data-lucide="grid" class="w-5 h-5"></i>
+      <span class="text-[10px] tracking-tight">More</span>
+    </button>
+  </nav>
+
+  <!-- Mobile "More" Bottom Sheet Drawer / Modal -->
+  <div id="mobile-more-sheet" class="fixed inset-0 z-50 hidden transition-opacity duration-300">
+    <!-- Backdrop -->
+    <div onclick="App.toggleMobileMoreSheet()" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
+    
+    <!-- Drawer Container -->
+    <div class="absolute bottom-0 inset-x-0 bg-slate-900 border-t border-slate-700/80 rounded-t-3xl p-5 pb-8 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom">
+      <div class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-2"></div>
+      
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-brand-400 font-bold text-xs">
+            <i data-lucide="layout-grid" class="w-4 h-4"></i>
+          </div>
+          <span class="font-bold text-white text-sm">All Navigation & Services</span>
+        </div>
+        <button onclick="App.toggleMobileMoreSheet()" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick Action Grid -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <a href="#reports" onclick="App.navigate('reports'); App.toggleMobileMoreSheet();" class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-200 text-xs font-semibold">
+          <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-400"></i>
+          <span>Analytics & Matrix</span>
+        </a>
+        <a href="#admin" id="mobile-more-admin-link" onclick="App.navigate('admin'); App.toggleMobileMoreSheet();" class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-200 text-xs font-semibold">
+          <i data-lucide="shield-check" class="w-4 h-4 text-amber-400"></i>
+          <span>Admin Panel</span>
+        </a>
+        <button onclick="Calling.openPitchCalculator(); App.toggleMobileMoreSheet();" class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-emerald-300 text-xs font-semibold text-left cursor-pointer">
+          <i data-lucide="calculator" class="w-4 h-4 text-emerald-400"></i>
+          <span>Earning Calculator</span>
+        </button>
+        <button onclick="App.triggerManualSync(); App.toggleMobileMoreSheet();" class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-200 text-xs font-semibold text-left cursor-pointer">
+          <i data-lucide="refresh-cw" class="w-4 h-4 text-brand-400"></i>
+          <span>Sync Live Data</span>
+        </button>
+      </div>
+
+      <!-- Fintech Services List -->
+      <div class="space-y-1.5 pt-2">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">Fintech Services</p>
+        <div id="mobile-more-services-list" class="grid grid-cols-2 gap-2">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Quick Controls -->
+      <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+        <button onclick="App.toggleTheme()" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200">
+          <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i>
+          <span>Switch Theme</span>
+        </button>
+        <button onclick="Auth.logout()" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 font-semibold">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span>Logout</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       5. APPLICATION JAVASCRIPT MODULES (v16 Tabs, WhatsApp & Mobile Bottom Bar)
+       ========================================================================= -->
+  <script src="js/config.js?v=16"></script>
+  <script src="js/api.js?v=16"></script>
+  <script src="js/auth.js?v=16"></script>
+  <script src="js/dashboard.js?v=16"></script>
+  <script src="js/services.js?v=16"></script>
+  <script src="js/calling.js?v=16"></script>
+  <script src="js/reports.js?v=16"></script>
+  <script src="js/admin.js?v=16"></script>
+  <script src="js/app.js?v=16"></script>
 
   <!-- PWA Service Worker Registration (Runs over HTTP/HTTPS) -->
   <script>

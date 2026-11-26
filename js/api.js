@@ -304,6 +304,25 @@ const Api = {
           }
         });
 
+        const todayStr = new Date().toISOString().substring(0, 10);
+        const clientCallsMap = {};
+        (db.calls || []).forEach(cl => {
+          const cId = cl.clientId;
+          const tsStr = String(cl.timestamp || cl.date || '').substring(0, 10);
+          if (!clientCallsMap[cId] || tsStr >= clientCallsMap[cId].lastCallDate) {
+            clientCallsMap[cId] = {
+              lastCallDate: tsStr,
+              lastCallOutcome: cl.callOutcome || '',
+              lastCaller: cl.callerUser || '',
+              nextFollowup: cl.nextFollowup || '',
+              lastCallNotes: cl.notes || '',
+              isCalledToday: (tsStr === todayStr)
+            };
+          } else if (tsStr === todayStr) {
+            clientCallsMap[cId].isCalledToday = true;
+          }
+        });
+
         let results = [];
         db.clients.forEach(c => {
           if (Config.isPaymentGatewayUser(c.clientName, c.mobile)) return;
@@ -367,7 +386,13 @@ const Api = {
             shortfall: shortfall,
             isCallingRequired: isCallingRequired,
             callingTag: callingTag,
-            callingReason: callingReason
+            callingReason: callingReason,
+            lastCallDate: clientCallsMap[c.clientId]?.lastCallDate || '',
+            lastCallOutcome: clientCallsMap[c.clientId]?.lastCallOutcome || '',
+            lastCaller: clientCallsMap[c.clientId]?.lastCaller || '',
+            nextFollowup: clientCallsMap[c.clientId]?.nextFollowup || '',
+            lastCallNotes: clientCallsMap[c.clientId]?.lastCallNotes || '',
+            isCalledToday: Boolean(clientCallsMap[c.clientId]?.isCalledToday)
           });
         });
 
@@ -377,9 +402,19 @@ const Api = {
           return b.inactiveDays - a.inactiveDays;
         });
 
+        const todayCompletedCount = results.filter(c => c.isCalledToday).length;
+        const pendingCount = results.filter(c => !c.isCalledToday).length;
+        const followupsDueCount = results.filter(c => c.nextFollowup && c.nextFollowup <= todayStr && !c.isCalledToday).length;
+
         return {
           total: results.length,
           clients: results,
+          stats: {
+            totalQueue: results.length,
+            todayCompleted: todayCompletedCount,
+            pendingUncalled: pendingCount,
+            followupsDue: followupsDueCount
+          },
           activeRule: {
             inactiveDays: inactiveDaysLimit,
             targetMode: targetMode,
@@ -397,6 +432,16 @@ const Api = {
         const timeline = db.calls.filter(c => c.clientId === params.clientId).reverse();
         const transactions = db.sales.filter(s => s.clientId === params.clientId).reverse();
         return { client, timeline, transactions };
+      }
+
+      case 'getCallingLogs': {
+        const todayStr = new Date().toISOString().substring(0, 10);
+        const logs = (db.calls || []).filter(c => {
+          if (params.all) return true;
+          const callD = String(c.timestamp || c.date || '').substring(0, 10);
+          return callD === (params.date || todayStr);
+        }).reverse();
+        return { calls: logs, total: logs.length };
       }
 
       case 'getAdminConfig': {

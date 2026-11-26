@@ -868,3 +868,97 @@ html.light #call-modal-save-btn {
 html.light #call-modal-save-btn:hover {
   background-color: #0369a1 !important;
 }
+
+/* ==========================================================================
+   CALLING SUBTABS & KPI CARDS (LIGHT & DARK MODE)
+   ========================================================================== */
+.calling-subtab {
+  cursor: pointer;
+}
+
+.calling-subtab.active {
+  background-color: rgba(192, 204, 100, 0.15) !important;
+  color: #C0CC64 !important;
+  border-color: rgba(192, 204, 100, 0.4) !important;
+  font-weight: 700 !important;
+}
+
+html.light .calling-subtab {
+  color: #64748b !important;
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .calling-subtab:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light .calling-subtab.active {
+  background-color: #eff6ff !important;
+  color: #0284c7 !important;
+  border-color: #93c5fd !important;
+}
+
+/* Mobile Bottom Navigation Bar */
+#mobile-bottom-bar {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+html.light #mobile-bottom-bar {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-top: 1px solid #e2e8f0 !important;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06) !important;
+}
+
+html.light .mobile-nav-btn {
+  color: #64748b !important;
+}
+
+html.light .mobile-nav-btn.text-brand-400 {
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+}
+
+html.light #mobile-more-sheet > div:nth-child(2) {
+  background-color: #ffffff !important;
+  border-top-color: #e2e8f0 !important;
+}
+
+html.light #mobile-more-sheet .bg-slate-800\/80,
+html.light #mobile-more-sheet .bg-slate-800,
+html.light #mobile-more-sheet .bg-slate-950 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+html.light #mobile-more-sheet .text-white {
+  color: #0f172a !important;
+}
+
+/* Modals Light Mode Support */
+html.light #pitch-calc-modal > div:nth-child(2),
+html.light #whatsapp-modal > div:nth-child(2) {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light #pitch-calc-modal .bg-slate-900,
+html.light #whatsapp-modal .bg-slate-900 {
+  background-color: #ffffff !important;
+}
+
+html.light #pitch-calc-modal .bg-slate-950,
+html.light #pitch-calc-modal .bg-slate-950\/80,
+html.light #pitch-calc-modal .bg-slate-950\/90,
+html.light #whatsapp-modal .bg-slate-950 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.light #pitch-calc-modal .text-white,
+html.light #whatsapp-modal .text-white {
+  color: #0f172a !important;
+}

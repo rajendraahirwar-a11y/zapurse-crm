@@ -109,6 +109,21 @@ const App = {
       }
     });
 
+    // Populate Mobile More Drawer Services List
+    const mobileMoreList = document.getElementById('mobile-more-services-list');
+    if (mobileMoreList) {
+      mobileMoreList.innerHTML = services.map(s => `
+        <a href="#service-${encodeURIComponent(s)}" onclick="Services.openService('${s}'); App.toggleMobileMoreSheet();"
+          class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 text-slate-200 text-xs font-medium">
+          <span class="flex items-center gap-1.5 truncate">
+            <span class="w-1.5 h-1.5 rounded-full bg-brand-400"></span>
+            <span class="truncate">${s}</span>
+          </span>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500 shrink-0"></i>
+        </a>
+      `).join('');
+    }
+
     if (window.lucide) lucide.createIcons();
   },
 
@@ -116,6 +131,7 @@ const App = {
     if (viewName.startsWith('service-')) {
       const serviceName = decodeURIComponent(viewName.replace('service-', ''));
       Services.openService(serviceName);
+      this.updateMobileBottomNav('services');
       return;
     }
 
@@ -132,8 +148,42 @@ const App = {
       Admin.load();
     }
 
+    this.updateMobileBottomNav(viewName);
+
     // Close mobile drawer on navigation
     this.closeMobileSidebar();
+  },
+
+  updateMobileBottomNav(viewName) {
+    const map = {
+      'dashboard': 'mobile-btn-dashboard',
+      'calling': 'mobile-btn-calling',
+      'services': 'mobile-btn-services'
+    };
+    const activeBtnId = map[viewName];
+    ['mobile-btn-dashboard', 'mobile-btn-calling', 'mobile-btn-services', 'mobile-btn-more'].forEach(id => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      if (id === activeBtnId) {
+        b.classList.remove('text-slate-400');
+        b.classList.add('text-brand-400', 'font-bold');
+      } else {
+        b.classList.remove('text-brand-400', 'font-bold');
+        b.classList.add('text-slate-400');
+      }
+    });
+  },
+
+  toggleMobileMoreSheet() {
+    const sheet = document.getElementById('mobile-more-sheet');
+    if (!sheet) return;
+    const isHidden = sheet.classList.contains('hidden');
+    if (isHidden) {
+      sheet.classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    } else {
+      sheet.classList.add('hidden');
+    }
   },
 
   switchView(viewName) {

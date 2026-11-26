@@ -815,6 +815,10 @@ function doGet(e) {
         responseData = getReportsHandler(params);
         break;
 
+      case "getCallingLogs":
+        responseData = getCallingLogsHandler(params);
+        break;
+
       case "setupDailySyncTrigger":
         responseData = setupDailySyncTrigger();
         break;
@@ -1545,6 +1549,33 @@ function getClientsHandler(params) {
     }
   }
 
+  // Pre-aggregate Calling Logs to identify today's called vs pending clients
+  const callsSheet = ss.getSheetByName(TABS.CALLS);
+  const callsData = callsSheet ? callsSheet.getDataRange().getValues() : [];
+  const clientCallsMap = {};
+  for (let i = 1; i < callsData.length; i++) {
+    const cId = String(callsData[i][2]);
+    const ts = callsData[i][1];
+    const tsStr = ts instanceof Date ? fastFormatDate(ts) : String(ts).substring(0, 10);
+    const caller = String(callsData[i][4] || "");
+    const outcome = String(callsData[i][5] || "");
+    const followup = callsData[i][8] ? String(callsData[i][8]).substring(0, 10) : "";
+    const notes = String(callsData[i][10] || "");
+
+    if (!clientCallsMap[cId] || tsStr >= clientCallsMap[cId].lastCallDate) {
+      clientCallsMap[cId] = {
+        lastCallDate: tsStr,
+        lastCallOutcome: outcome,
+        lastCaller: caller,
+        nextFollowup: followup,
+        lastCallNotes: notes,
+        isCalledToday: (tsStr === todayStr),
+      };
+    } else if (tsStr === todayStr) {
+      clientCallsMap[cId].isCalledToday = true;
+    }
+  }
+
   let results = [];
 
   for (let i = 1; i < data.length; i++) {
@@ -1671,6 +1702,12 @@ function getClientsHandler(params) {
       primaryService: primaryService,
       parentName: parentName,
       parentMobile: parentMobile,
+      lastCallDate: clientCallsMap[clientId]?.lastCallDate || "",
+      lastCallOutcome: clientCallsMap[clientId]?.lastCallOutcome || "",
+      lastCaller: clientCallsMap[clientId]?.lastCaller || "",
+      nextFollowup: clientCallsMap[clientId]?.nextFollowup || "",
+      lastCallNotes: clientCallsMap[clientId]?.lastCallNotes || "",
+      isCalledToday: Boolean(clientCallsMap[clientId]?.isCalledToday),
     });
   }
 
@@ -1683,9 +1720,21 @@ function getClientsHandler(params) {
     return b.inactiveDays - a.inactiveDays;
   });
 
+  const todayCompletedCount = results.filter((c) => c.isCalledToday).length;
+  const pendingCount = results.filter((c) => !c.isCalledToday).length;
+  const followupsDueCount = results.filter(
+    (c) => c.nextFollowup && c.nextFollowup <= todayStr && !c.isCalledToday
+  ).length;
+
   return {
     total: results.length,
     clients: results,
+    stats: {
+      totalQueue: results.length,
+      todayCompleted: todayCompletedCount,
+      pendingUncalled: pendingCount,
+      followupsDue: followupsDueCount,
+    },
     activeRule: {
       inactiveDays: inactiveDaysLimit,
       targetMode: targetMode,
@@ -1696,6 +1745,47 @@ function getClientsHandler(params) {
           ? `Target Retention: Last ${inactiveDaysLimit}d sales below target (${baselineMonths}M baseline)`
           : `Inactivity Retention: Zero sales in last ${inactiveDaysLimit} days`,
     },
+  };
+}
+
+/**
+ * Fetch calling history logs for Today or specific date
+ */
+function getCallingLogsHandler(params) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const callsSheet = ss.getSheetByName(TABS.CALLS);
+  if (!callsSheet) return { calls: [] };
+
+  const data = callsSheet.getDataRange().getValues();
+  const targetDate = params.date || fastFormatDate(new Date());
+  const logs = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const ts = row[1];
+    const dateStr =
+      ts instanceof Date ? fastFormatDate(ts) : String(ts).substring(0, 10);
+
+    if (!params.all && dateStr !== targetDate) continue;
+
+    logs.push({
+      callId: String(row[0] || ""),
+      timestamp:
+        ts instanceof Date ? ts.toISOString() : String(ts || ""),
+      date: dateStr,
+      clientId: String(row[2] || ""),
+      clientName: String(row[3] || ""),
+      callerUser: String(row[4] || ""),
+      callOutcome: String(row[5] || ""),
+      recordingUrl: String(row[7] || ""),
+      nextFollowup: String(row[8] || ""),
+      notes: String(row[10] || ""),
+    });
+  }
+
+  return {
+    calls: logs.reverse(),
+    total: logs.length,
   };
 }
 
