@@ -339,12 +339,12 @@ const Api = {
           if (sm.volN === 0) {
             isCallingRequired = true;
             callingTag = 'Zero Sales';
-            callingReason = `Calling Required: 0 Sales (${diffDays === 999 ? 'No txns' : `${diffDays}d inactive`})`;
+            callingReason = `0 Sales (${diffDays === 999 ? 'No txns' : `${diffDays}d inactive`})`;
           } else if (targetMode === 'target_based' && sm.volN < expectedNDaysVol) {
             isCallingRequired = true;
             shortfall = Math.round(expectedNDaysVol - sm.volN);
             callingTag = 'Target Shortfall';
-            callingReason = `Target Shortfall: ₹${shortfall.toLocaleString('en-IN')} below target`;
+            callingReason = `₹${shortfall.toLocaleString('en-IN')} below target`;
           }
 
           if (!isCallingRequired && !searchQuery) {

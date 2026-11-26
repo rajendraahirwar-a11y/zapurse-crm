@@ -181,6 +181,79 @@ html.light #api-status-pill {
   color: #047857 !important;
 }
 
+/* User Profile Widget in Header (Default / Dark Mode) */
+#user-avatar-box {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
+  border: 1.5px solid rgba(125, 211, 252, 0.4) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35) !important;
+}
+
+#user-avatar-initials {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+}
+
+#user-role-badge {
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+#user-logout-btn {
+  color: #94a3b8;
+  background-color: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+#user-logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* User Profile Widget in Header (Light Mode) */
+html.light #user-profile-widget {
+  border-left-color: #e2e8f0 !important;
+}
+
+html.light #user-display-name {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+html.light #user-role-badge {
+  background-color: #eff6ff !important;
+  color: #0284c7 !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+html.light #user-avatar-box {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  border: 1.5px solid #bae6fd !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25) !important;
+}
+
+html.light #user-avatar-initials {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+}
+
+html.light #user-logout-btn {
+  color: #64748b !important;
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+html.light #user-logout-btn:hover {
+  background-color: #fee2e2 !important;
+  color: #e11d48 !important;
+  border-color: #fca5a5 !important;
+}
+
 /* Left Sidebar */
 html.light aside#app-sidebar {
   background-color: #ffffff !important;

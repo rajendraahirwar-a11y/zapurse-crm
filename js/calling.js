@@ -112,20 +112,22 @@ const Calling = {
         statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Converted</span>`;
       }
 
-      // Retention Reason Tag
+      // Retention Reason Tag (Without "Calling Required:" prefix, cleanly highlighted)
       let reasonTag = '';
       if (c.callingTag === 'Zero Sales') {
+        const inactText = inactiveDays === 999 ? 'No Txns' : `${inactiveDays}d Inactive`;
         reasonTag = `
-          <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1.5 shadow-sm">
-            <i data-lucide="alert-octagon" class="w-3.5 h-3.5"></i>
-            <span>${c.callingReason || 'Calling Required: 0 Sales'}</span>
+          <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 inline-flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+            <span>0 Sales (${inactText})</span>
           </span>
         `;
       } else if (c.callingTag === 'Target Shortfall') {
+        const dropAmount = Number(c.shortfall || 0).toLocaleString('en-IN');
         reasonTag = `
-          <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1.5 shadow-sm">
+          <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 inline-flex items-center gap-1.5 shadow-sm">
             <i data-lucide="trending-down" class="w-3.5 h-3.5"></i>
-            <span>${c.callingReason || 'Target Shortfall'}</span>
+            <span>₹${dropAmount} Below Target</span>
           </span>
         `;
       } else {
@@ -136,8 +138,10 @@ const Calling = {
         `;
       }
 
+      const rowHighlight = c.callingTag === 'Zero Sales' ? 'bg-rose-500/[0.04]' : (c.callingTag === 'Target Shortfall' ? 'bg-amber-500/[0.04]' : '');
+
       return `
-        <tr class="hover:bg-slate-800/40 transition">
+        <tr class="hover:bg-slate-800/40 transition ${rowHighlight}">
           <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${c.clientId}</td>
           <td class="py-3 px-3.5">
             <div class="font-bold text-white">${c.clientName}</div>
