@@ -704,7 +704,7 @@
              ===================================================================== -->
         <section id="view-calling" class="hidden space-y-6">
           
-          <!-- Calling Header & Quick Filter Pills -->
+          <!-- Calling Header & Streamlined Filter Toolbar -->
           <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -712,72 +712,52 @@
                   <i data-lucide="phone-call" class="w-5 h-5 text-emerald-400"></i>
                   <span>Smart Calling Engine</span>
                 </h2>
-                <p class="text-xs text-slate-400">Automated retention calling filter based on transaction inactivity & sales thresholds.</p>
+                <p class="text-xs text-slate-400">Automated retention calling queue driven by admin-configured inactivity & sales target rules.</p>
               </div>
 
-              <!-- Today Toggle Switch -->
-              <div class="flex items-center gap-2.5 bg-slate-950 px-3.5 py-2 rounded-xl border border-slate-800">
-                <span class="text-xs text-slate-300 font-medium">Include Today's Sales:</span>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" id="calling-include-today-toggle" onchange="Calling.load()" class="sr-only peer">
-                  <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600"></div>
-                </label>
-              </div>
-            </div>
-
-            <!-- ONE-CLICK INACTIVE FILTERS -->
-            <div class="pt-2 border-t border-slate-800">
-              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                One-Click Inactivity Filters:
-              </span>
-              <div class="flex flex-wrap gap-2">
-                <button type="button" onclick="Calling.applyQuickFilter('4')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="4">
-                  4 Days Inactive
-                </button>
-                <button type="button" onclick="Calling.applyQuickFilter('7')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="7">
-                  7 Days Inactive
-                </button>
-                <button type="button" onclick="Calling.applyQuickFilter('10')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="10">
-                  10 Days Inactive
-                </button>
-                <button type="button" onclick="Calling.applyQuickFilter('15')" class="calling-filter-btn active px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand-600 text-white border border-brand-500 shadow-md shadow-brand-600/30 transition" data-days="15">
-                  15 Days Inactive
-                </button>
-                <button type="button" onclick="Calling.applyQuickFilter('30')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="30">
-                  30 Days Inactive
-                </button>
-                <button type="button" onclick="Calling.applyQuickFilter('90')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="90">
-                  3 Months Inactive
-                </button>
-                <button type="button" onclick="Calling.applyQuickFilter('ALL')" class="calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition" data-days="ALL">
-                  All Merchants
-                </button>
+              <!-- Active Rule Badge & Today Toggle -->
+              <div class="flex flex-wrap items-center gap-2">
+                <div id="calling-active-rule-pill" class="px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+                  <i data-lucide="target" class="w-3.5 h-3.5 text-amber-400"></i>
+                  <span id="calling-active-rule-text">Rule: Inactivity & Target Retention</span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+                  <span class="text-xs text-slate-300 font-medium">Include Today:</span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="calling-include-today-toggle" onchange="Calling.load()" class="sr-only peer">
+                    <div class="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brand-600"></div>
+                  </label>
+                </div>
               </div>
             </div>
 
-            <!-- Additional Filter Controls -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              <div>
-                <label class="block text-[11px] font-semibold text-slate-400 mb-1">Max Yearly Volume Filter (₹)</label>
-                <input type="number" id="calling-filter-yearly" onchange="Calling.load()" placeholder="e.g. 50000"
-                  class="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
-              </div>
-
-              <div>
+            <!-- Only Filter by Service and Search Client / Mobile (Streamlined) -->
+            <div class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <!-- Filter by Service -->
+              <div class="sm:w-64">
                 <label class="block text-[11px] font-semibold text-slate-400 mb-1">Filter by Service</label>
-                <select id="calling-filter-service" onchange="Calling.load()" class="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                <select id="calling-filter-service" onchange="Calling.load()" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
                   <option value="ALL">All Services</option>
                   <!-- Populated from config -->
                 </select>
               </div>
 
-              <div>
+              <!-- Search Client / Mobile -->
+              <div class="flex-1">
                 <label class="block text-[11px] font-semibold text-slate-400 mb-1">Search Client / Mobile</label>
                 <div class="relative">
-                  <input type="text" id="calling-filter-search" onkeyup="Calling.handleSearch()" placeholder="Name, phone, or city..."
-                    class="w-full pl-8 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                  <input type="text" id="calling-filter-search" onkeyup="Calling.handleSearch()" placeholder="Search merchant name, mobile, kiosk code, city..."
+                    class="w-full pl-8 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
                   <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none"></i>
                 </div>
+              </div>
+
+              <!-- Refresh Queue Button -->
+              <div class="sm:self-end">
+                <button type="button" onclick="Calling.load()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-slate-300 transition flex items-center justify-center gap-1.5 h-[36px]">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                  <span>Refresh Queue</span>
+                </button>
               </div>
             </div>
           </div>
@@ -794,7 +774,7 @@
               </div>
             </div>
 
-            <!-- Queue Table -->
+            <!-- Queue Table: 7-Day Performance Focus -->
             <div class="overflow-x-auto border border-slate-800 rounded-xl">
               <table class="w-full text-left text-xs text-slate-300">
                 <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
@@ -802,18 +782,18 @@
                     <th class="py-3 px-3.5">Client ID</th>
                     <th class="py-3 px-3.5">Merchant Name</th>
                     <th class="py-3 px-3.5">Mobile</th>
-                    <th class="py-3 px-3.5">City / State</th>
-                    <th class="py-3 px-3.5">Primary Service</th>
-                    <th class="py-3 px-3.5">Inactive Days</th>
-                    <th class="py-3 px-3.5 text-right">Yearly Sales</th>
-                    <th class="py-3 px-3.5 text-center">Follow-ups (Limit)</th>
+                    <th class="py-3 px-3.5">Service</th>
+                    <th class="py-3 px-3.5 text-right">7-Day Sales (₹)</th>
+                    <th class="py-3 px-3.5 text-center">7-Day Txns</th>
+                    <th class="py-3 px-3.5">Inactivity / Target Status</th>
+                    <th class="py-3 px-3.5 text-center">Follow-ups</th>
                     <th class="py-3 px-3.5 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody id="calling-queue-tbody" class="divide-y divide-slate-800/60 font-medium">
                   <!-- Dynamically rendered -->
                   <tr>
-                    <td colspan="9" class="text-center py-8 text-slate-500">Loading calling queue...</td>
+                    <td colspan="9" class="text-center py-8 text-slate-500">Loading target calling queue...</td>
                   </tr>
                 </tbody>
               </table>
@@ -993,6 +973,60 @@
                   </label>
                   <p class="text-[11px] text-slate-500 mb-2">Threshold for filtering high vs low performing merchants.</p>
                   <input type="number" id="setting-min-sales" class="w-full px-3.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                </div>
+              </div>
+
+              <!-- TARGET CALLING QUEUE CONFIGURATION -->
+              <div class="p-5 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-4">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <i data-lucide="target" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-bold text-white">Target Calling Queue & Inactivity Retention Rules</h4>
+                    <p class="text-[11px] text-slate-400">Configure which clients get highlighted and routed to caller staff queue.</p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                      Inactivity Threshold Days (N Days)
+                    </label>
+                    <p class="text-[11px] text-slate-500 mb-1.5">Highlight merchants who made no sales in the last N days (e.g. 3, 4, 7, 10 days).</p>
+                    <input type="number" id="setting-calling-inactive-days" value="3" min="1" max="90" class="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm">
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                      Calling Queue Selection Mode
+                    </label>
+                    <p class="text-[11px] text-slate-500 mb-1.5">Choose which clients are sent to callers.</p>
+                    <select id="setting-calling-target-mode" class="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm">
+                      <option value="inactivity">Zero Sales Inactivity (0 Sales in last N days)</option>
+                      <option value="target_based">Average Daily Target Shortfall (Based on Past Months)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                      Target Calculation Baseline (Past Months)
+                    </label>
+                    <p class="text-[11px] text-slate-500 mb-1.5">Used to determine expected per-day sales for each client.</p>
+                    <select id="setting-calling-baseline-months" class="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm">
+                      <option value="1">Last 1 Month</option>
+                      <option value="2">Last 2 Months</option>
+                      <option value="3" selected>Last 3 Months (Recommended)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                      Custom Minimum Daily Target (₹/Day) [Optional]
+                    </label>
+                    <p class="text-[11px] text-slate-500 mb-1.5">Set 0 for automatic calculation from past months, or fixed target.</p>
+                    <input type="number" id="setting-calling-min-target" value="0" min="0" placeholder="0 = Auto from past months" class="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm">
+                  </div>
                 </div>
               </div>
 
@@ -1319,17 +1353,17 @@
 
 
   <!-- =========================================================================
-       5. APPLICATION JAVASCRIPT MODULES (v12 User Management CRUD, Morning 8 AM Trigger & Polished Tables)
+       5. APPLICATION JAVASCRIPT MODULES (v13 Streamlined Calling Filters & Admin Target Rules)
        ========================================================================= -->
-  <script src="js/config.js?v=12"></script>
-  <script src="js/api.js?v=12"></script>
-  <script src="js/auth.js?v=12"></script>
-  <script src="js/dashboard.js?v=12"></script>
-  <script src="js/services.js?v=12"></script>
-  <script src="js/calling.js?v=12"></script>
-  <script src="js/reports.js?v=12"></script>
-  <script src="js/admin.js?v=12"></script>
-  <script src="js/app.js?v=12"></script>
+  <script src="js/config.js?v=13"></script>
+  <script src="js/api.js?v=13"></script>
+  <script src="js/auth.js?v=13"></script>
+  <script src="js/dashboard.js?v=13"></script>
+  <script src="js/services.js?v=13"></script>
+  <script src="js/calling.js?v=13"></script>
+  <script src="js/reports.js?v=13"></script>
+  <script src="js/admin.js?v=13"></script>
+  <script src="js/app.js?v=13"></script>
 
   <!-- PWA Service Worker Registration (Runs over HTTP/HTTPS) -->
   <script>

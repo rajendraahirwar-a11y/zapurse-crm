@@ -17,25 +17,28 @@ const Calling = {
   recSeconds: 0,
 
   async load() {
-    const inactiveDays = this.currentInactiveDays;
     const includeToday = document.getElementById('calling-include-today-toggle')?.checked ? 'true' : 'false';
-    const minYearlySales = document.getElementById('calling-filter-yearly')?.value || '';
     const service = document.getElementById('calling-filter-service')?.value || 'ALL';
     const search = document.getElementById('calling-filter-search')?.value || '';
 
     const tbody = document.getElementById('calling-queue-tbody');
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-500">Loading filtered merchants queue...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-500"><i data-lucide="loader-2" class="w-5 h-5 animate-spin inline mr-2 text-brand-400"></i>Loading target calling queue...</td></tr>`;
+      if (window.lucide) lucide.createIcons();
     }
 
     try {
       const res = await Api.get('getClients', {
-        inactiveDays,
         includeToday,
-        minYearlySales,
         service,
         search
       });
+
+      // Update active rule display chip
+      const ruleTextElem = document.getElementById('calling-active-rule-text');
+      if (ruleTextElem && res.activeRule?.ruleText) {
+        ruleTextElem.textContent = 'Rule: ' + res.activeRule.ruleText;
+      }
 
       const rawClients = res.clients || [];
       this.currentClientList = rawClients.filter(c => !Config.isPaymentGatewayUser(c.clientName, c.mobile));
@@ -46,23 +49,16 @@ const Calling = {
       if (badge) badge.textContent = this.currentClientList.length;
 
       const summary = document.getElementById('calling-queue-summary');
-      if (summary) summary.textContent = `Showing ${this.currentClientList.length} merchants matching criteria.`;
+      if (summary) {
+        summary.textContent = `Showing ${this.currentClientList.length} merchants matching target calling criteria.`;
+      }
 
     } catch (err) {
       console.error('Failed to load calling queue:', err);
-    }
-  },
-
-  applyQuickFilter(days) {
-    this.currentInactiveDays = days;
-    document.querySelectorAll('.calling-filter-btn').forEach(btn => {
-      if (btn.getAttribute('data-days') === days) {
-        btn.className = 'calling-filter-btn active px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand-600 text-white border border-brand-500 shadow-md shadow-brand-600/30 transition';
-      } else {
-        btn.className = 'calling-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition';
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-rose-400 font-medium">Failed to load calling queue. Please retry.</td></tr>`;
       }
-    });
-    this.load();
+    }
   },
 
   handleSearch() {
@@ -77,12 +73,12 @@ const Calling = {
     if (!tbody) return;
 
     if (!clients || clients.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-500">No merchants found for this filter criteria.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-500">No merchants matching calling criteria currently. All merchants meeting targets!</td></tr>`;
       return;
     }
 
     tbody.innerHTML = clients.map(c => {
-      // Safe Inactive Days calculation
+      // Safe Inactive Days
       let inactiveDays = c.inactiveDays;
       if (inactiveDays === undefined && c.lastTxnDate) {
         const parts = String(c.lastTxnDate).substring(0, 10).split('-');
@@ -93,10 +89,8 @@ const Calling = {
       }
       if (inactiveDays === undefined || isNaN(inactiveDays)) inactiveDays = 999;
 
-      // Inactive badge color
-      let badgeColor = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      if (inactiveDays >= 30) badgeColor = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-      else if (inactiveDays >= 10) badgeColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      const vol7 = Number(c.sevenDaySales?.volume || 0);
+      const txns7 = Number(c.sevenDaySales?.count || 0);
 
       const isLocked = c.status === 'Locked' || (c.followupsCount || 0) >= 5;
       const isConverted = c.status === 'Converted';
@@ -108,22 +102,55 @@ const Calling = {
         statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Converted</span>`;
       }
 
+      // Retention Reason Tag
+      let reasonTag = '';
+      if (c.callingTag === 'Zero Sales') {
+        reasonTag = `
+          <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="alert-octagon" class="w-3.5 h-3.5"></i>
+            <span>${c.callingReason || 'Calling Required: 0 Sales'}</span>
+          </span>
+        `;
+      } else if (c.callingTag === 'Target Shortfall') {
+        reasonTag = `
+          <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="trending-down" class="w-3.5 h-3.5"></i>
+            <span>${c.callingReason || 'Target Shortfall'}</span>
+          </span>
+        `;
+      } else {
+        reasonTag = `
+          <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+            ${inactiveDays === 999 ? 'No Txns' : `${inactiveDays}d Inactive`}
+          </span>
+        `;
+      }
+
       return `
         <tr class="hover:bg-slate-800/40 transition">
           <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${c.clientId}</td>
-          <td class="py-3 px-3.5 font-bold text-white">${c.clientName}</td>
-          <td class="py-3 px-3.5 text-slate-300 font-mono">${c.mobile}</td>
-          <td class="py-3 px-3.5 text-slate-400">${c.cityState || 'India'}</td>
+          <td class="py-3 px-3.5">
+            <div class="font-bold text-white">${c.clientName}</div>
+            ${c.parentName && c.parentName !== '-' ? `<div class="text-[11px] text-slate-400 font-normal">Parent: ${c.parentName}</div>` : ''}
+          </td>
+          <td class="py-3 px-3.5 whitespace-nowrap">
+            <a href="tel:${c.mobile}" class="font-mono font-semibold text-slate-300 hover:text-emerald-400 transition" title="Click to Call">
+              ${c.mobile}
+            </a>
+          </td>
           <td class="py-3 px-3.5 whitespace-nowrap">
             ${Config.getServiceBadgeHtml(c.primaryService || 'General')}
           </td>
-          <td class="py-3 px-3.5 whitespace-nowrap">
-            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeColor}">
-              ${inactiveDays === 999 ? 'No Txns' : `${inactiveDays} Days`}
+          <td class="py-3 px-3.5 text-right font-mono font-bold whitespace-nowrap">
+            ${vol7 === 0 ? '<span class="text-rose-400">₹0</span>' : `<span class="text-emerald-400">₹${vol7.toLocaleString('en-IN')}</span>`}
+          </td>
+          <td class="py-3 px-3.5 text-center whitespace-nowrap">
+            <span class="px-2 py-0.5 rounded-lg text-xs font-semibold ${txns7 === 0 ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-800 text-slate-300'}">
+              ${txns7} Txns
             </span>
           </td>
-          <td class="py-3 px-3.5 text-right font-mono font-bold text-white">
-            ₹${Number(c.yearlySales || 0).toLocaleString('en-IN')}
+          <td class="py-3 px-3.5 whitespace-nowrap">
+            ${reasonTag}
           </td>
           <td class="py-3 px-3.5 text-center whitespace-nowrap">
             <div class="flex items-center justify-center gap-1.5">
@@ -137,7 +164,7 @@ const Calling = {
             <button onclick="Calling.openCallModalById('${c.clientId}')" 
               class="px-3 py-1.5 ${isLocked ? 'bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/30'} rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 mx-auto">
               <i data-lucide="phone-call" class="w-3.5 h-3.5"></i>
-              <span>${isLocked ? 'View' : 'Call'}</span>
+              <span>${isLocked ? 'View' : 'Call Now'}</span>
             </button>
           </td>
         </tr>

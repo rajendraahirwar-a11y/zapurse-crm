@@ -121,6 +121,10 @@ const Api = {
       config: {
         maxFollowupLimit: 5,
         yearlyMinSalesCondition: 50000,
+        callingInactiveDays: 3,
+        callingTargetMode: 'inactivity',
+        callingBaselineMonths: 3,
+        callingMinDailyTarget: 0,
         services: [...Config.DEFAULT_SERVICES],
         dynamicQuestions: [...Config.DEFAULT_QUESTIONS]
       },
@@ -260,43 +264,132 @@ const Api = {
       }
 
       case 'getClients': {
-        const inactiveFilter = params.inactiveDays ? (params.inactiveDays === 'ALL' ? null : Number(params.inactiveDays)) : null;
+        const cfg = db.config || {};
+        const inactiveDaysLimit = params.inactiveDays ? Number(params.inactiveDays) : (Number(cfg.callingInactiveDays) || 3);
+        const targetMode = params.targetMode || cfg.callingTargetMode || 'inactivity';
+        const baselineMonths = Number(params.baselineMonths) || Number(cfg.callingBaselineMonths) || 3;
+        const minDailyTarget = Number(params.minDailyTarget) || Number(cfg.callingMinDailyTarget) || 0;
         const includeToday = params.includeToday === 'true';
-        const minYearlySales = params.minYearlySales ? Number(params.minYearlySales) : null;
         const serviceFilter = params.service || 'ALL';
         const searchQuery = params.search ? params.search.toLowerCase() : '';
+
         const now = new Date();
+        const nowMs = now.getTime();
         const todayStr = now.toISOString().split('T')[0];
+
+        const d7 = new Date(); d7.setDate(now.getDate() - 7);
+        const dN = new Date(); dN.setDate(now.getDate() - inactiveDaysLimit);
+        const dBase = new Date(); dBase.setDate(now.getDate() - (baselineMonths * 30));
+
+        // Aggregate sales per client
+        const clientSalesMap = {};
+        (db.sales || []).forEach(s => {
+          const cId = s.clientId;
+          if (!cId) return;
+          if (!clientSalesMap[cId]) {
+            clientSalesMap[cId] = { vol7: 0, cnt7: 0, volN: 0, cntN: 0, volBase: 0, lastDate: '' };
+          }
+          const m = clientSalesMap[cId];
+          const sDate = new Date(s.date);
+          const vol = Number(s.volume) || 0;
+          const cnt = Number(s.txnCount) || 1;
+
+          if (!includeToday && s.date === todayStr) {
+            // Skip
+          } else {
+            if (s.date > m.lastDate) m.lastDate = s.date;
+            if (sDate >= d7) { m.vol7 += vol; m.cnt7 += cnt; }
+            if (sDate >= dN) { m.volN += vol; m.cntN += cnt; }
+            if (sDate >= dBase) { m.volBase += vol; }
+          }
+        });
 
         let results = [];
         db.clients.forEach(c => {
-          let lastDate = new Date(c.lastTxnDate);
-          let isToday = c.lastTxnDate === todayStr;
-          let diffDays = 0;
-          if (!isNaN(lastDate.getTime())) {
-            diffDays = Math.max(0, Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)));
-          } else {
-            diffDays = 999;
-          }
-
-          if (!includeToday && isToday) return;
-          if (inactiveFilter !== null && diffDays < inactiveFilter) return;
-          if (minYearlySales !== null && c.yearlySales > minYearlySales) return;
-          if (serviceFilter !== 'ALL' && c.primaryService !== serviceFilter) return;
+          if (Config.isPaymentGatewayUser(c.clientName, c.mobile)) return;
 
           if (searchQuery) {
-            const combined = `${c.clientId} ${c.clientName} ${c.mobile} ${c.cityState}`.toLowerCase();
+            const combined = `${c.clientId} ${c.clientName} ${c.mobile} ${c.cityState || ''} ${c.parentName || ''}`.toLowerCase();
             if (!combined.includes(searchQuery)) return;
+          }
+
+          if (serviceFilter !== 'ALL' && c.primaryService !== serviceFilter) return;
+
+          const sm = clientSalesMap[c.clientId] || { vol7: 0, cnt7: 0, volN: 0, cntN: 0, volBase: 0, lastDate: '' };
+          const effectiveDate = sm.lastDate || c.lastTxnDate;
+
+          let diffDays = 999;
+          if (effectiveDate) {
+            const lastD = new Date(effectiveDate);
+            if (!isNaN(lastD.getTime())) {
+              diffDays = Math.max(0, Math.floor((nowMs - lastD.getTime()) / (1000 * 60 * 60 * 24)));
+            }
+          }
+
+          const baselineDays = Math.max(1, baselineMonths * 30);
+          const calculatedDailyAvg = sm.volBase / baselineDays;
+          const expectedDaily = Math.max(minDailyTarget, calculatedDailyAvg);
+          const expectedNDaysVol = expectedDaily * inactiveDaysLimit;
+
+          let isCallingRequired = false;
+          let callingTag = '';
+          let callingReason = '';
+          let shortfall = 0;
+
+          if (sm.volN === 0) {
+            isCallingRequired = true;
+            callingTag = 'Zero Sales';
+            callingReason = `Calling Required: 0 Sales (${diffDays === 999 ? 'No txns' : `${diffDays}d inactive`})`;
+          } else if (targetMode === 'target_based' && sm.volN < expectedNDaysVol) {
+            isCallingRequired = true;
+            shortfall = Math.round(expectedNDaysVol - sm.volN);
+            callingTag = 'Target Shortfall';
+            callingReason = `Target Shortfall: ₹${shortfall.toLocaleString('en-IN')} below target`;
+          }
+
+          if (!isCallingRequired && !searchQuery) {
+            return;
           }
 
           results.push({
             ...c,
-            inactiveDays: diffDays
+            lastTxnDate: effectiveDate,
+            inactiveDays: diffDays,
+            sevenDaySales: {
+              volume: sm.vol7,
+              count: sm.cnt7
+            },
+            lastNDaysSales: {
+              volume: sm.volN,
+              count: sm.cntN
+            },
+            expectedDailySales: Math.round(expectedDaily),
+            shortfall: shortfall,
+            isCallingRequired: isCallingRequired,
+            callingTag: callingTag,
+            callingReason: callingReason
           });
         });
 
-        results.sort((a, b) => b.inactiveDays - a.inactiveDays);
-        return { total: results.length, clients: results };
+        results.sort((a, b) => {
+          if (a.isCallingRequired !== b.isCallingRequired) return a.isCallingRequired ? -1 : 1;
+          if (a.sevenDaySales.volume !== b.sevenDaySales.volume) return a.sevenDaySales.volume - b.sevenDaySales.volume;
+          return b.inactiveDays - a.inactiveDays;
+        });
+
+        return {
+          total: results.length,
+          clients: results,
+          activeRule: {
+            inactiveDays: inactiveDaysLimit,
+            targetMode: targetMode,
+            baselineMonths: baselineMonths,
+            minDailyTarget: minDailyTarget,
+            ruleText: targetMode === 'target_based'
+              ? `Target Retention: Last ${inactiveDaysLimit}d sales below target (${baselineMonths}M baseline)`
+              : `Inactivity Retention: Zero sales in last ${inactiveDaysLimit} days`
+          }
+        };
       }
 
       case 'getClientHistory': {
@@ -453,6 +546,10 @@ const Api = {
         if (payload.yearlyMinSalesCondition !== undefined) db.config.yearlyMinSalesCondition = Number(payload.yearlyMinSalesCondition);
         if (payload.services !== undefined) db.config.services = payload.services;
         if (payload.dynamicQuestions !== undefined) db.config.dynamicQuestions = payload.dynamicQuestions;
+        if (payload.callingInactiveDays !== undefined) db.config.callingInactiveDays = Number(payload.callingInactiveDays);
+        if (payload.callingTargetMode !== undefined) db.config.callingTargetMode = payload.callingTargetMode;
+        if (payload.callingBaselineMonths !== undefined) db.config.callingBaselineMonths = Number(payload.callingBaselineMonths);
+        if (payload.callingMinDailyTarget !== undefined) db.config.callingMinDailyTarget = Number(payload.callingMinDailyTarget);
         this._saveDemoDb(db);
         return { success: true, message: 'Settings saved locally!' };
       }

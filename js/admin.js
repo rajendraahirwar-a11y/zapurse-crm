@@ -32,6 +32,17 @@ const Admin = {
       document.getElementById('setting-min-sales').value = this.configState.yearlyMinSalesCondition || 50000;
       document.getElementById('setting-services-list').value = (this.configState.services || Config.DEFAULT_SERVICES).join(', ');
 
+      // Calling Target Rules
+      const inactInput = document.getElementById('setting-calling-inactive-days');
+      const modeSelect = document.getElementById('setting-calling-target-mode');
+      const baseSelect = document.getElementById('setting-calling-baseline-months');
+      const minTgtInput = document.getElementById('setting-calling-min-target');
+
+      if (inactInput) inactInput.value = this.configState.callingInactiveDays || 3;
+      if (modeSelect) modeSelect.value = this.configState.callingTargetMode || 'inactivity';
+      if (baseSelect) baseSelect.value = this.configState.callingBaselineMonths || 3;
+      if (minTgtInput) minTgtInput.value = this.configState.callingMinDailyTarget || 0;
+
       // Sub-tab 4: Connection
       document.getElementById('admin-api-url-input').value = Config.getApiUrl();
 
@@ -411,20 +422,32 @@ const Admin = {
   },
 
   async saveSystemSettings() {
-    const maxFollowup = document.getElementById('setting-max-followup').value;
-    const minSales = document.getElementById('setting-min-sales').value;
-    const servicesStr = document.getElementById('setting-services-list').value;
+    const maxFollowup = document.getElementById('setting-max-followup')?.value || 5;
+    const minSales = document.getElementById('setting-min-sales')?.value || 50000;
+    const servicesStr = document.getElementById('setting-services-list')?.value || '';
     const services = servicesStr.split(',').map(s => s.trim()).filter(Boolean);
+
+    const callingInactiveDays = Number(document.getElementById('setting-calling-inactive-days')?.value) || 3;
+    const callingTargetMode = document.getElementById('setting-calling-target-mode')?.value || 'inactivity';
+    const callingBaselineMonths = Number(document.getElementById('setting-calling-baseline-months')?.value) || 3;
+    const callingMinDailyTarget = Number(document.getElementById('setting-calling-min-target')?.value) || 0;
 
     const res = await Api.post('saveAdminConfig', {
       maxFollowupLimit: maxFollowup,
       yearlyMinSalesCondition: minSales,
-      services: services
+      services: services,
+      callingInactiveDays: callingInactiveDays,
+      callingTargetMode: callingTargetMode,
+      callingBaselineMonths: callingBaselineMonths,
+      callingMinDailyTarget: callingMinDailyTarget
     });
 
     if (res.success) {
-      Swal.fire('Success', 'Business rules and services catalog updated!', 'success');
+      Swal.fire('Success', 'Business rules and target calling engine rules updated!', 'success');
       App.populateDynamicServicesNav(services);
+      if (typeof Calling !== 'undefined' && Calling.load) {
+        Calling.load();
+      }
     }
   }
 };
