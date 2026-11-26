@@ -20,8 +20,7 @@ const Config = {
     'ZAPRECHARGE',
     'RISLUPI',
     'RISLDMT',
-    'RISLRECHARGE',
-    'B2Crecharge'
+    'RISLRECHARGE'
   ],
 
   // Default Dynamic Questions for Calling Script (Configured to User Exact Requirements)
