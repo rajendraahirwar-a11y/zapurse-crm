@@ -38,7 +38,10 @@ const Services = {
       if (!data || data.totalVolume === undefined) {
         console.warn('getServiceData returned empty, trying fallback to getInitialData');
         const initData = await Api.get('getInitialData');
-        const filtered = (initData.recentSales || []).filter(s => (s.serviceName || '').toUpperCase() === (serviceName || '').toUpperCase());
+        const filtered = (initData.recentSales || []).filter(s => {
+          if (Config.isPaymentGatewayUser(s.clientName, s.mobile)) return false;
+          return (s.serviceName || '').toUpperCase() === (serviceName || '').toUpperCase();
+        });
         let fVol = 0, fTxns = 0;
         filtered.forEach(s => { fVol += Number(s.volume) || 0; fTxns += Number(s.txnCount) || 0; });
         data = {
@@ -51,11 +54,19 @@ const Services = {
         };
       }
 
-      const totalVol = data.totalVolume || 0;
-      const totalTxns = data.totalTxnCount || 0;
-      const topMerchants = data.topMerchants || [];
-      const bottomMerchants = data.bottomMerchants || [];
-      const sales = data.transactions || [];
+      // Filter out internal Payment Gateway user
+      const sales = (data.transactions || []).filter(item => !Config.isPaymentGatewayUser(item.clientName, item.mobile));
+      const topMerchants = (data.topMerchants || []).filter(item => !Config.isPaymentGatewayUser(item.clientName, item.mobile));
+      const bottomMerchants = (data.bottomMerchants || []).filter(item => !Config.isPaymentGatewayUser(item.clientName, item.mobile));
+
+      let totalVol = data.totalVolume || 0;
+      let totalTxns = data.totalTxnCount || 0;
+      // Recompute if un-skipped payment gateway user was in aggregated totals
+      if (sales.length !== (data.transactions || []).length) {
+        totalVol = 0;
+        totalTxns = 0;
+        sales.forEach(s => { totalVol += Number(s.volume) || 0; totalTxns += Number(s.txnCount) || 0; });
+      }
 
       if (volElem) volElem.textContent = '₹' + totalVol.toLocaleString('en-IN');
       if (txnsElem) txnsElem.textContent = totalTxns.toLocaleString('en-IN');

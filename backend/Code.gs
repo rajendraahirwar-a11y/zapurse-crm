@@ -166,6 +166,18 @@ function fetchPayGatewayReport(filters) {
 }
 
 /**
+ * STRICT RULE: Skip internal Zapurse Payment Gateway system account
+ */
+function isPaymentGatewayUser(name, mobile) {
+  const cleanName = String(name || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  const cleanMobile = String(mobile || '').trim();
+  if (cleanName.includes('PAYMENTGATEWAY') || cleanName.includes('PAYMENT GATEWAY')) return true;
+  if (cleanName.includes('ZAPURSE PAYMENTGATEWAY USER')) return true;
+  if (cleanMobile === '7024219540') return true;
+  return false;
+}
+
+/**
  * ============================================================================
  * 3. ALL SERVICES IN SINGLE MASTER SHEET (MASTER REPORT)
  * ============================================================================
@@ -205,6 +217,17 @@ function updateAllServicesInMasterSheet(customFromDate, customToDate) {
       const headers = rows[0].map((h, idx) => String(h).trim() || `Col_${idx + 1}`);
       const dataRows = rows.slice(1);
 
+      // Detect Client_Name and Mobile indices in this service
+      const clientNameIdx = headers.findIndex(h => /^(clientname|name)/i.test(h.replace(/[^a-z0-9]/gi, '')));
+      const mobileIdx = headers.findIndex(h => /^(clientmobileno|mobile)/i.test(h.replace(/[^a-z0-9]/gi, '')));
+
+      // Filter out internal Payment Gateway User
+      const filteredDataRows = dataRows.filter(row => {
+        const rowName = clientNameIdx !== -1 ? row[clientNameIdx] : '';
+        const rowMobile = mobileIdx !== -1 ? row[mobileIdx] : '';
+        return !isPaymentGatewayUser(rowName, rowMobile);
+      });
+
       headers.forEach(h => {
         if (!masterHeaders.includes(h)) {
           masterHeaders.push(h);
@@ -214,11 +237,11 @@ function updateAllServicesInMasterSheet(customFromDate, customToDate) {
       serviceResults.push({
         service: service,
         headers: headers,
-        dataRows: dataRows
+        dataRows: filteredDataRows
       });
 
-      totalRecords += dataRows.length;
-      summary.push(`✅ ${service}: ${dataRows.length} records`);
+      totalRecords += filteredDataRows.length;
+      summary.push(`✅ ${service}: ${filteredDataRows.length} records`);
     } else {
       summary.push(`⚠️ ${service}: No Data / Blank`);
     }
@@ -282,81 +305,6 @@ function updateAllServicesInMasterSheet(customFromDate, customToDate) {
 
 /**
  * ============================================================================
- * 4. ALL SERVICES IN SEPARATE SHEETS
- * ============================================================================
- */
-function updateAllServicesInSeparateSheets() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let summary = [];
-
-  for (let i = 0; i < CONFIG.SERVICE_TYPES.length; i++) {
-    const service = CONFIG.SERVICE_TYPES[i];
-    Logger.log(`Processing: ${service}...`);
-
-    const filters = {
-      FromDate: CONFIG.FROM_DATE,
-      ToDate: CONFIG.TO_DATE,
-      LoginMobileNumber: CONFIG.LOGIN_MOBILE,
-      ServiceType: service
-    };
-
-    const rows = fetchPayGatewayReport(filters);
-
-    if (rows && rows.length > 0 && rows[0] && rows[0].length > 0) {
-      let sheet = ss.getSheetByName(service);
-      if (!sheet) {
-        sheet = ss.insertSheet(service);
-      }
-
-      if (sheet.getFilter()) sheet.getFilter().remove();
-      sheet.clearContents();
-      sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
-      sheet.getRange(1, 1, 1, rows[0].length).setFontWeight("bold").setBackground("#0f172a").setFontColor("#ffffff");
-      sheet.setFrozenRows(1);
-
-      const recordCount = rows.length > 1 ? rows.length - 1 : 0;
-      summary.push(`✅ ${service}: ${recordCount} records`);
-    } else {
-      summary.push(`⚠️ ${service}: No Data / Blank`);
-    }
-
-    Utilities.sleep(300);
-  }
-
-  showSafeAlert("Separate Sheets Summary", summary.join("\n"));
-}
-
-function saveRechargeReportToSheet() {
-  const service = "ZAPRECHARGE";
-  const filters = {
-    FromDate: CONFIG.FROM_DATE,
-    ToDate: CONFIG.TO_DATE,
-    LoginMobileNumber: CONFIG.LOGIN_MOBILE,
-    ServiceType: service
-  };
-
-  const rows = fetchPayGatewayReport(filters);
-  if (!rows || rows.length === 0 || !rows[0] || rows[0].length === 0) {
-    showSafeAlert("Notice", `${service} ke liye koi data nahi mila ya API me error aaya.`);
-    return;
-  }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(service);
-  if (!sheet) sheet = ss.insertSheet(service);
-
-  if (sheet.getFilter()) sheet.getFilter().remove();
-  sheet.clearContents();
-  sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
-  sheet.getRange(1, 1, 1, rows[0].length).setFontWeight("bold").setBackground("#0f172a").setFontColor("#ffffff");
-  sheet.setFrozenRows(1);
-
-  const count = rows.length > 1 ? rows.length - 1 : 0;
-  showSafeAlert("Success", `${service}: ${count} records import ho gaye.`);
-}
-
-/**
- * ============================================================================
  * 5. MASTER SALES DATA LOADER FOR CRM API & FRONTEND
  * Reads directly from 'Master Report' (or 'Sales_Data') and provides clean,
  * 100% positive, non-shifted transactions matrix!
@@ -406,6 +354,11 @@ function parseSheetRows(sheet, defaultServiceName) {
     const parentName = pNameIdx !== -1 && r[pNameIdx] ? String(r[pNameIdx]).trim() : '-';
     const parentMobile = pMobIdx !== -1 && r[pMobIdx] ? String(r[pMobIdx]).trim() : '-';
     const state = stateIdx !== -1 && r[stateIdx] ? String(r[stateIdx]).trim() : 'Rajasthan, India';
+
+    // Strictly skip internal Payment Gateway user
+    if (isPaymentGatewayUser(clientName, mobile)) {
+      continue;
+    }
 
     // If service name is empty or missing, detect from KIOSKCODE or index
     if (!sName || sName === '-' || sName === 'General') {
@@ -492,6 +445,11 @@ function syncClientsFromMasterData(ss, finalMasterData) {
     const dStr = normalizeDateString(dateIdx !== -1 ? r[dateIdx] : '');
     const state = stateIdx !== -1 && r[stateIdx] ? String(r[stateIdx]).trim() : 'Rajasthan, India';
 
+    // Strictly skip internal Payment Gateway user from Clients Master
+    if (isPaymentGatewayUser(clientName, mobile)) {
+      continue;
+    }
+
     if (!clientsMap.has(clientId)) {
       clientsMap.set(clientId, {
         clientId: clientId,
@@ -541,8 +499,7 @@ function syncClientsFromMasterData(ss, finalMasterData) {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("⚡ Zapurse CRM")
-    .addItem("📊 Update Master Report (All in One)", "updateAllServicesInMasterSheet")
-    .addItem("📑 Update Separate Sheets (Per Service)", "updateAllServicesInSeparateSheets")
+    .addItem("📊 Update Master Report (All Services)", "updateAllServicesInMasterSheet")
     .addSeparator()
     .addItem("🔄 Quick Sync Today", "menuSyncToday")
     .addItem("📅 Sync Custom Date Range", "menuSyncFullRange")

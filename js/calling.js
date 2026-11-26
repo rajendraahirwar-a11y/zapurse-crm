@@ -37,7 +37,8 @@ const Calling = {
         search
       });
 
-      this.currentClientList = res.clients || [];
+      const rawClients = res.clients || [];
+      this.currentClientList = rawClients.filter(c => !Config.isPaymentGatewayUser(c.clientName, c.mobile));
       this.renderQueue(this.currentClientList);
 
       // Update badge counts

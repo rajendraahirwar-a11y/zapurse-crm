@@ -25,10 +25,12 @@ const Dashboard = {
       this.renderChart(this.cachedChartData);
 
       // 3. Render Lowest Performing Clients Alert Box
-      this.renderLowestPerforming(data.lowestPerforming || []);
+      const lowestClients = (data.lowestPerforming || []).filter(item => !Config.isPaymentGatewayUser(item.clientName, item.mobile));
+      this.renderLowestPerforming(lowestClients);
 
-      // 4. Render Master Sales Table
-      this.allSalesData = data.recentSales || [];
+      // 4. Render Master Sales Table (Skip Payment Gateway User)
+      const rawSales = data.recentSales || [];
+      this.allSalesData = rawSales.filter(item => !Config.isPaymentGatewayUser(item.clientName, item.mobile));
       this.populateServiceDropdowns(data.services || []);
       this.filterSalesTable();
 
@@ -83,6 +85,14 @@ const Dashboard = {
       return '#0369a1';
     });
 
+    const isLight = document.documentElement.classList.contains('light');
+    const gridColor = isLight ? '#e2e8f0' : '#1e293b';
+    const tickColor = isLight ? '#64748b' : '#94a3b8';
+    const tooltipBg = isLight ? '#ffffff' : '#0f172a';
+    const tooltipBorder = isLight ? '#cbd5e1' : '#334155';
+    const tooltipTitle = isLight ? '#0f172a' : '#f8fafc';
+    const tooltipBody = isLight ? '#475569' : '#94a3b8';
+
     this.chartInstance = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -103,11 +113,11 @@ const Dashboard = {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#0f172a',
-            borderColor: '#334155',
+            backgroundColor: tooltipBg,
+            borderColor: tooltipBorder,
             borderWidth: 1,
-            titleColor: '#f8fafc',
-            bodyColor: '#94a3b8',
+            titleColor: tooltipTitle,
+            bodyColor: tooltipBody,
             callbacks: {
               label: (context) => {
                 const item = chartData[context.dataIndex];
@@ -124,12 +134,12 @@ const Dashboard = {
         scales: {
           x: {
             grid: { display: false },
-            ticks: { color: '#94a3b8', font: { size: 11 } }
+            ticks: { color: tickColor, font: { size: 11 } }
           },
           y: {
-            grid: { color: '#1e293b' },
+            grid: { color: gridColor },
             ticks: {
-              color: '#94a3b8',
+              color: tickColor,
               font: { size: 11 },
               callback: (val) => {
                 if (this.activeChartMetric === 'volume') {

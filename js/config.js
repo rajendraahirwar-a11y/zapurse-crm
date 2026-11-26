@@ -12,6 +12,7 @@ const Config = {
   STORAGE_KEY_API_URL: 'zapurse_crm_api_url',
   STORAGE_KEY_USER: 'zapurse_crm_active_user',
   STORAGE_KEY_DEMO_MODE: 'zapurse_crm_demo_mode',
+  STORAGE_KEY_THEME: 'zapurse_theme',
 
   // Default Services Catalog (Exact Zapurse API Service Types)
   DEFAULT_SERVICES: [
@@ -114,5 +115,17 @@ const Config = {
 
   setDemoMode(enable) {
     localStorage.setItem(this.STORAGE_KEY_DEMO_MODE, enable ? 'true' : 'false');
+  },
+
+  /**
+   * Check if client/merchant is internal payment gateway user to skip
+   */
+  isPaymentGatewayUser(name, mobile) {
+    const cleanName = String(name || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const cleanMobile = String(mobile || '').trim();
+    if (cleanName.includes('PAYMENTGATEWAY') || cleanName.includes('PAYMENT GATEWAY')) return true;
+    if (cleanName.includes('ZAPURSE PAYMENTGATEWAY USER')) return true;
+    if (cleanMobile === '7024219540') return true;
+    return false;
   }
 };

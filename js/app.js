@@ -8,6 +8,9 @@ const App = {
   currentView: 'dashboard',
 
   init() {
+    // 0. Initialize Theme (Dark / Light)
+    this.initTheme();
+
     // 1. Initialize Auth
     Auth.init();
 
@@ -21,6 +24,51 @@ const App = {
 
     // 3. Update API Status Pill
     this.updateApiStatusIndicator();
+  },
+
+  initTheme() {
+    const saved = localStorage.getItem(Config.STORAGE_KEY_THEME) || 'dark';
+    this.applyTheme(saved);
+  },
+
+  toggleTheme() {
+    const isDark = document.documentElement.classList.contains('dark');
+    const next = isDark ? 'light' : 'dark';
+    this.applyTheme(next);
+  },
+
+  applyTheme(theme) {
+    const html = document.documentElement;
+    const icon = document.getElementById('theme-toggle-icon');
+    const text = document.getElementById('theme-toggle-text');
+    const btn = document.getElementById('theme-toggle-btn');
+
+    if (theme === 'light') {
+      html.classList.remove('dark');
+      html.classList.add('light');
+      localStorage.setItem(Config.STORAGE_KEY_THEME, 'light');
+      if (icon) {
+        icon.setAttribute('data-lucide', 'moon');
+        icon.className = 'w-3.5 h-3.5 text-indigo-500';
+      }
+      if (text) text.textContent = 'Dark';
+      if (btn) btn.title = 'Switch to Dark Mode';
+    } else {
+      html.classList.remove('light');
+      html.classList.add('dark');
+      localStorage.setItem(Config.STORAGE_KEY_THEME, 'dark');
+      if (icon) {
+        icon.setAttribute('data-lucide', 'sun');
+        icon.className = 'w-3.5 h-3.5 text-amber-400';
+      }
+      if (text) text.textContent = 'Light';
+      if (btn) btn.title = 'Switch to Light Mode';
+    }
+
+    if (window.lucide) lucide.createIcons();
+    if (window.Dashboard && Dashboard.chartInstance && Dashboard.cachedChartData && Dashboard.cachedChartData.length > 0) {
+      Dashboard.renderChart(Dashboard.cachedChartData);
+    }
   },
 
   onUserLoggedIn() {
