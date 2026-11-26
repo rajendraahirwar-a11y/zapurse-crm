@@ -25,6 +25,52 @@ const Config = {
     'RISLRECHARGE'
   ],
 
+  // Visual & Feature Metadata for Services Catalog
+  SERVICE_META: {
+    'ZAPAEPS': {
+      title: 'ZAP AEPS',
+      icon: 'fingerprint',
+      badge: 'AEPS Micro-ATM',
+      desc: 'Aadhaar Enabled Payment System sales, cash-out & balance stats'
+    },
+    'ZAPUPI': {
+      title: 'ZAP UPI',
+      icon: 'qr-code',
+      badge: 'UPI QR Pay',
+      desc: 'Dynamic UPI QR collections, gateway transactions & settlements'
+    },
+    'ZAPRECHARGE': {
+      title: 'ZAP RECHARGE',
+      icon: 'smartphone',
+      badge: 'Utility & Mobile',
+      desc: 'Mobile prepaid/postpaid, DTH & fast bill payment transactions'
+    },
+    'B2C': {
+      title: 'B2C GATEWAY',
+      icon: 'credit-card',
+      badge: 'B2C Gateway',
+      desc: 'Direct consumer recharge, payments & gateway transaction reports'
+    },
+    'RISLUPI': {
+      title: 'RISL UPI',
+      icon: 'landmark',
+      badge: 'Govt RISL Portal',
+      desc: 'Govt of Rajasthan RISL digital portal UPI payment streams'
+    },
+    'RISLDMT': {
+      title: 'RISL DMT',
+      icon: 'send',
+      badge: 'Money Transfer',
+      desc: 'Domestic Money Transfer & direct account IMPS/NEFT payouts'
+    },
+    'RISLRECHARGE': {
+      title: 'RISL RECHARGE',
+      icon: 'zap',
+      badge: 'RISL Bill Pay',
+      desc: 'Govt RISL utility bills, electricity & E-Mitra recharge services'
+    }
+  },
+
   // Default Dynamic Questions for Calling Script (Configured to User Exact Requirements)
   DEFAULT_QUESTIONS: [
     { 

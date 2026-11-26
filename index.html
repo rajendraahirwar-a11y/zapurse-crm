@@ -29,6 +29,7 @@
     }
   </script>
   <meta name="theme-color" content="#1A4B64">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Zapurse CRM">
@@ -72,7 +73,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/styles.css?v=16">
+  <link rel="stylesheet" href="css/styles.css?v=17">
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased h-screen overflow-hidden flex flex-col selection:bg-brand-600 selection:text-white">
 
@@ -564,6 +565,17 @@
              VIEW 2: DYNAMIC SERVICES VIEW
              ===================================================================== -->
         <section id="view-services" class="hidden space-y-6">
+          <!-- Horizontal Services Switcher Pills Bar -->
+          <div class="flex items-center justify-between gap-3 pb-2 border-b border-slate-800">
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 flex-1" id="services-pills-bar">
+              <!-- Dynamically populated via App.populateServicesPillsBar() -->
+            </div>
+            <button type="button" onclick="App.openServicesPicker()" class="shrink-0 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-brand-400 flex items-center gap-1.5 transition shadow-sm cursor-pointer">
+              <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+              <span class="hidden sm:inline">All Services</span>
+            </button>
+          </div>
+
           <!-- Dynamic Header -->
           <div class="p-6 bg-gradient-to-r from-slate-900 to-slate-900/50 border border-slate-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
@@ -1698,8 +1710,8 @@
       <span class="text-[10px] tracking-tight">Calling</span>
     </button>
 
-    <!-- 3. Services Matrix -->
-    <button type="button" onclick="App.navigate('services', 'ZAPAEPS')" id="mobile-btn-services" class="mobile-nav-btn flex flex-col items-center justify-center gap-1 flex-1 py-1 text-slate-400 hover:text-white transition cursor-pointer">
+    <!-- 3. Services Matrix (Opens Dedicated Services Picker Sheet) -->
+    <button type="button" onclick="App.openServicesPicker()" id="mobile-btn-services" class="mobile-nav-btn flex flex-col items-center justify-center gap-1 flex-1 py-1 text-slate-400 hover:text-white transition cursor-pointer">
       <i data-lucide="layers" class="w-5 h-5"></i>
       <span class="text-[10px] tracking-tight">Services</span>
     </button>
@@ -1710,6 +1722,37 @@
       <span class="text-[10px] tracking-tight">More</span>
     </button>
   </nav>
+
+  <!-- Services Selection Sheet / Modal -->
+  <div id="services-picker-sheet" class="fixed inset-0 z-50 hidden transition-opacity duration-300">
+    <!-- Backdrop -->
+    <div onclick="App.closeServicesPicker()" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
+    
+    <!-- Sheet Container -->
+    <div class="absolute bottom-0 inset-x-0 md:bottom-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-xl md:w-full bg-slate-900 border md:border border-slate-700/80 rounded-t-3xl md:rounded-2xl p-5 pb-8 md:pb-6 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom">
+      <div class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-2 md:hidden"></div>
+      
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-brand-400 font-bold">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-base">Select Fintech Service</h3>
+            <p class="text-xs text-slate-400">Choose a service to view dedicated volume, merchants & analytics</p>
+          </div>
+        </div>
+        <button onclick="App.closeServicesPicker()" class="p-1.5 text-slate-400 hover:text-white rounded-xl bg-slate-800/80 hover:bg-slate-800">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Services Grid List -->
+      <div id="services-picker-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <!-- Dynamically populated via App.populateServicesPickerList() -->
+      </div>
+    </div>
+  </div>
 
   <!-- Mobile "More" Bottom Sheet Drawer / Modal -->
   <div id="mobile-more-sheet" class="fixed inset-0 z-50 hidden transition-opacity duration-300">
@@ -1775,17 +1818,17 @@
   </div>
 
   <!-- =========================================================================
-       5. APPLICATION JAVASCRIPT MODULES (v16 Tabs, WhatsApp & Mobile Bottom Bar)
+       5. APPLICATION JAVASCRIPT MODULES (v17 Services Picker & Instant Navigation)
        ========================================================================= -->
-  <script src="js/config.js?v=16"></script>
-  <script src="js/api.js?v=16"></script>
-  <script src="js/auth.js?v=16"></script>
-  <script src="js/dashboard.js?v=16"></script>
-  <script src="js/services.js?v=16"></script>
-  <script src="js/calling.js?v=16"></script>
-  <script src="js/reports.js?v=16"></script>
-  <script src="js/admin.js?v=16"></script>
-  <script src="js/app.js?v=16"></script>
+  <script src="js/config.js?v=17"></script>
+  <script src="js/api.js?v=17"></script>
+  <script src="js/auth.js?v=17"></script>
+  <script src="js/dashboard.js?v=17"></script>
+  <script src="js/services.js?v=17"></script>
+  <script src="js/calling.js?v=17"></script>
+  <script src="js/reports.js?v=17"></script>
+  <script src="js/admin.js?v=17"></script>
+  <script src="js/app.js?v=17"></script>
 
   <!-- PWA Service Worker Registration (Runs over HTTP/HTTPS) -->
   <script>

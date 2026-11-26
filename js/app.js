@@ -124,14 +124,27 @@ const App = {
       `).join('');
     }
 
+    // Populate Dedicated Services Picker Sheet & Horizontal Pills Bar
+    this.populateServicesPickerList(services);
+    this.populateServicesPillsBar(Services.currentService || services[0]);
+
     if (window.lucide) lucide.createIcons();
   },
 
-  navigate(viewName) {
+  navigate(viewName, param) {
+    if (viewName === 'services') {
+      const serviceName = param || Services.currentService || Config.DEFAULT_SERVICES[0];
+      Services.openService(serviceName);
+      this.updateMobileBottomNav('services');
+      this.closeMobileSidebar();
+      return;
+    }
+
     if (viewName.startsWith('service-')) {
       const serviceName = decodeURIComponent(viewName.replace('service-', ''));
       Services.openService(serviceName);
       this.updateMobileBottomNav('services');
+      this.closeMobileSidebar();
       return;
     }
 
@@ -184,6 +197,89 @@ const App = {
     } else {
       sheet.classList.add('hidden');
     }
+  },
+
+  openServicesPicker() {
+    const sheet = document.getElementById('services-picker-sheet');
+    if (!sheet) return;
+    this.populateServicesPickerList();
+    sheet.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  },
+
+  closeServicesPicker() {
+    const sheet = document.getElementById('services-picker-sheet');
+    if (sheet) sheet.classList.add('hidden');
+  },
+
+  populateServicesPickerList(services) {
+    const list = document.getElementById('services-picker-list');
+    if (!list) return;
+    const servs = services || Config.DEFAULT_SERVICES;
+    const current = (window.Services && Services.currentService) || servs[0];
+
+    list.innerHTML = servs.map(s => {
+      const meta = (Config.SERVICE_META && Config.SERVICE_META[s]) || {
+        title: s,
+        icon: 'layers',
+        badge: 'Fintech Service',
+        desc: `Dedicated live monitoring & transactions for ${s}`
+      };
+      const isActive = (s === current);
+      return `
+        <div onclick="Services.openService('${s}'); App.closeServicesPicker(); App.updateMobileBottomNav('services');"
+          class="service-picker-card p-3.5 rounded-2xl cursor-pointer transition-all border ${
+            isActive 
+              ? 'bg-brand-500/15 border-brand-500/50 shadow-md ring-1 ring-brand-500/30' 
+              : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/60 hover:border-slate-600'
+          } group flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl ${
+            isActive ? 'bg-brand-500 text-white' : 'bg-slate-900 border border-slate-700/60 text-brand-400 group-hover:text-brand-300'
+          } flex items-center justify-center shrink-0">
+            <i data-lucide="${meta.icon}" class="w-5 h-5"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-1">
+              <h4 class="text-xs font-bold text-white group-hover:text-brand-300 transition truncate">${meta.title}</h4>
+              <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                isActive ? 'bg-brand-400/20 text-brand-300 border border-brand-400/30' : 'bg-slate-700/60 text-slate-300'
+              }">${meta.badge}</span>
+            </div>
+            <p class="text-[11px] text-slate-400 line-clamp-2 mt-0.5 leading-snug">${meta.desc}</p>
+          </div>
+          <div class="shrink-0 self-center">
+            <i data-lucide="chevron-right" class="w-4 h-4 ${isActive ? 'text-brand-400' : 'text-slate-500 group-hover:text-slate-300'}"></i>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  },
+
+  populateServicesPillsBar(activeService) {
+    const bar = document.getElementById('services-pills-bar');
+    if (!bar) return;
+    const servs = Config.DEFAULT_SERVICES;
+    const active = activeService || (window.Services && Services.currentService) || servs[0];
+
+    bar.innerHTML = servs.map(s => {
+      const meta = (Config.SERVICE_META && Config.SERVICE_META[s]) || { title: s, icon: 'layers' };
+      const isActive = (s === active);
+      return `
+        <button type="button" onclick="Services.openService('${s}')"
+          class="srv-chip-btn px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
+            isActive
+              ? 'bg-brand-500 text-white shadow-sm ring-1 ring-brand-400/40 active'
+              : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700/60'
+          }">
+          <i data-lucide="${meta.icon}" class="w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-brand-400'}"></i>
+          <span>${s}</span>
+        </button>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
   },
 
   switchView(viewName) {

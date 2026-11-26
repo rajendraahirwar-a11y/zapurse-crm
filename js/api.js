@@ -304,7 +304,6 @@ const Api = {
           }
         });
 
-        const todayStr = new Date().toISOString().substring(0, 10);
         const clientCallsMap = {};
         (db.calls || []).forEach(cl => {
           const cId = cl.clientId;

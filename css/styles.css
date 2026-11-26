@@ -962,3 +962,81 @@ html.light #pitch-calc-modal .text-white,
 html.light #whatsapp-modal .text-white {
   color: #0f172a !important;
 }
+
+/* ==============================================================================
+   SERVICES PICKER MODAL & HORIZONTAL SWITCHER BAR (LIGHT / DARK THEMES)
+   ============================================================================== */
+#services-picker-sheet > div:nth-child(2) {
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+}
+
+html.light #services-picker-sheet > div:nth-child(2) {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12) !important;
+}
+
+html.light #services-picker-sheet .border-slate-800 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light #services-picker-sheet .text-white {
+  color: #0f172a !important;
+}
+
+html.light #services-picker-sheet .text-slate-400 {
+  color: #64748b !important;
+}
+
+html.light .service-picker-card {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .service-picker-card:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light .service-picker-card.bg-brand-500\/15 {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15) !important;
+}
+
+html.light .service-picker-card h4 {
+  color: #0f172a !important;
+}
+
+html.light .service-picker-card p {
+  color: #64748b !important;
+}
+
+/* Horizontal Services Switcher Pills Bar */
+.srv-chip-btn {
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+html.light .srv-chip-btn {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+html.light .srv-chip-btn:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light .srv-chip-btn.active {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3) !important;
+}
+
+html.light .srv-chip-btn.active i {
+  color: #ffffff !important;
+}
