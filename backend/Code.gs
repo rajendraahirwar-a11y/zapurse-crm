@@ -27,6 +27,7 @@ const CONFIG = {
     "ZAPAEPS",
     "ZAPUPI",
     "ZAPRECHARGE",
+    "B2C",
     "RISLUPI",
     "RISLDMT",
     "RISLRECHARGE"
@@ -96,6 +97,62 @@ function applyRislStateRule(rows, serviceType) {
 }
 
 /**
+ * B2C GATEWAY RECHARGE HANDLER:
+ * Filters only 'Success' transactions and normalizes 43 columns into standard CRM structure
+ */
+function normalizeB2CRows(rows) {
+  if (!rows || rows.length <= 1) return rows;
+  const h = rows[0].map(x => String(x).trim());
+  const findIdx = (regex) => h.findIndex(col => regex.test(col.toLowerCase().replace(/[^a-z0-9]/g, '')));
+
+  const stIdx = findIdx(/^(rechargestatus|paymentstatus|status)/);
+  const amtIdx = findIdx(/^(rechargeamount|amount|totalamount)/);
+  const dateIdx = findIdx(/^(rechargedate|orderdate|date)/);
+  const nameIdx = findIdx(/^(customername|clientname|name)/);
+  const mobIdx = findIdx(/^(loginmobilenumber|clientmobileno|mobile)/);
+  const stateIdx = findIdx(/^(statename|state)/);
+  const opIdx = findIdx(/^(operatorname|operator)/);
+  const recNumIdx = findIdx(/^(rechargenumber|parentmobileno)/);
+  const rcptIdx = findIdx(/^(receiptid|orderid|kioskcode)/);
+
+  const stdHeaders = ['TransactionDateTime', 'TotalNumberoftransaction', 'Client_Name', 'Client_MobileNo', 'Parent_Name', 'ParentMobileNo', 'Amount', 'CommissionAmount', 'State', 'KIOSKCODE', 'RecordStatus'];
+  const result = [stdHeaders];
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const status = stIdx !== -1 && r[stIdx] ? String(r[stIdx]).trim() : 'Success';
+    if (status.toLowerCase() !== 'success') {
+      continue; // Filter only Success records as specified in user reference code
+    }
+
+    const recDate = dateIdx !== -1 && r[dateIdx] ? String(r[dateIdx]).trim() : '';
+    const recNum = recNumIdx !== -1 && r[recNumIdx] ? String(r[recNumIdx]).trim() : '';
+    const custName = nameIdx !== -1 && r[nameIdx] ? String(r[nameIdx]).trim() : (recNum ? ('Customer ' + recNum) : 'B2C User');
+    const mob = mobIdx !== -1 && r[mobIdx] ? String(r[mobIdx]).trim() : '';
+    const opName = opIdx !== -1 && r[opIdx] ? String(r[opIdx]).trim() : 'B2C Operator';
+    const amt = amtIdx !== -1 && r[amtIdx] ? String(r[amtIdx]).trim() : '0';
+    const state = stateIdx !== -1 && r[stateIdx] ? String(r[stateIdx]).trim() : 'Rajasthan, India';
+    const rcpt = rcptIdx !== -1 && r[rcptIdx] ? String(r[rcptIdx]).trim() : ('B2C_' + i);
+
+    result.push([
+      recDate,
+      '1',
+      custName,
+      mob,
+      opName,
+      recNum,
+      amt,
+      '0',
+      state,
+      rcpt,
+      'Success'
+    ]);
+  }
+
+  return result;
+}
+
+/**
  * ============================================================================
  * 2. CORE PURE API CALL FUNCTION
  * ============================================================================
@@ -156,7 +213,11 @@ function fetchPayGatewayReport(filters) {
       return null;
     }
 
-    rows = applyRislStateRule(rows, filters.ServiceType);
+    if (filters.ServiceType.toUpperCase() === "B2C") {
+      rows = normalizeB2CRows(rows);
+    } else {
+      rows = applyRislStateRule(rows, filters.ServiceType);
+    }
     return rows;
 
   } catch (err) {
@@ -906,7 +967,13 @@ function getInitialDataHandler(params) {
 
   let services = CONFIG.SERVICE_TYPES;
   if (configMap['Services_List']) {
-    try { services = JSON.parse(configMap['Services_List']); } catch (e) {}
+    try {
+      const parsed = JSON.parse(configMap['Services_List']);
+      if (Array.isArray(parsed) && parsed.length >= 6) {
+        services = parsed;
+        if (!services.includes('B2C')) services.push('B2C');
+      }
+    } catch (e) {}
   }
 
   return {

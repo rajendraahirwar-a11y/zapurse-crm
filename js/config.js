@@ -19,6 +19,7 @@ const Config = {
     'ZAPAEPS',
     'ZAPUPI',
     'ZAPRECHARGE',
+    'B2C',
     'RISLUPI',
     'RISLDMT',
     'RISLRECHARGE'

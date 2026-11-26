@@ -1,5 +1,5 @@
 // Service Worker for Zapurse CRM PWA (Network-First Strategy for Instant Updates)
-const CACHE_NAME = 'zapurse-crm-v8';
+const CACHE_NAME = 'zapurse-crm-v9';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
