@@ -24,7 +24,8 @@ const ZAPURSE_CONFIG = {
     "ZAPRECHARGE",
     "RISLUPI",
     "RISLDMT",
-    "RISLRECHARGE"
+    "RISLRECHARGE",
+    "B2C"
   ]
 };
 
@@ -135,17 +136,17 @@ function cleanAndResyncDatabase(fromDate, toDate, specificServices) {
   const salesSheet = ss.getSheetByName(TABS.SALES);
   const clientsSheet = ss.getSheetByName(TABS.CLIENTS);
 
-  // Clear data rows in Sales_Data (leaving Row 1 headers intact)
-  const salesLastRow = salesSheet.getLastRow();
-  if (salesLastRow > 1) {
-    salesSheet.getRange(2, 1, salesLastRow - 1, salesSheet.getLastColumn()).clearContent();
-  }
+  // Reset Sales_Data with exact 12-column header
+  const expectedSalesHeaders = ['Txn_ID', 'Date', 'Kiosk_ID', 'Client_Name', 'Mobile', 'Parent_Name', 'Parent_Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp'];
+  salesSheet.clear();
+  salesSheet.appendRow(expectedSalesHeaders);
+  salesSheet.getRange(1, 1, 1, 12).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
 
-  // Clear data rows in Clients_Master (leaving Row 1 headers intact)
-  const clientsLastRow = clientsSheet.getLastRow();
-  if (clientsLastRow > 1) {
-    clientsSheet.getRange(2, 1, clientsLastRow - 1, clientsSheet.getLastColumn()).clearContent();
-  }
+  // Reset Clients_Master with exact 13-column header
+  const expectedClientHeaders = ['Client_ID', 'Client_Name', 'Mobile', 'City_State', 'Assigned_User', 'Last_Txn_Date', 'Yearly_Sales', 'Total_Followups_Count', 'Lead_Status', 'Primary_Service', 'Created_At', 'Parent_Name', 'Parent_Mobile'];
+  clientsSheet.clear();
+  clientsSheet.appendRow(expectedClientHeaders);
+  clientsSheet.getRange(1, 1, 1, 13).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
 
   return syncAllZapurseServices(fromDate, toDate, specificServices);
 }
@@ -258,9 +259,11 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
         let statusVal = colMap.status !== -1 && row[colMap.status] ? String(row[colMap.status]).trim().toUpperCase() : 'SUCCESS';
         let stateVal = colMap.state !== -1 && row[colMap.state] ? String(row[colMap.state]).trim() : 'Rajasthan, India';
 
-        // Filter out failed transactions if status column exists
-        if (statusVal && statusVal.includes('FAIL')) {
-          continue;
+        // Strict Payment Status check: Only Success transactions!
+        if (colMap.status !== -1 && row[colMap.status]) {
+          if (statusVal !== 'SUCCESS' && statusVal !== 'SUCCESSFUL' && !statusVal.includes('SUCCESS')) {
+            continue; // Skip failed, pending, initiated, refunded, etc.
+          }
         }
 
         // Normalize Date to standard YYYY-MM-DD
@@ -435,18 +438,18 @@ function mapCsvHeaders(headers) {
   const findIdx = (regex) => headers.findIndex(h => regex.test(h.replace(/[^a-z0-9]/g, '')));
 
   return {
-    txnId: findIdx(/^(txnid|transactionid|rrn|referenceno|refno|id)$/),
-    date: findIdx(/^(transactiondatetime|txndatetime|txndate|transactiondate|date|createdon|createdat|timestamp|time)$/),
-    clientId: findIdx(/^(kioskcode|kioskid|agentcode|retailerid|clientid|merchantid|agentid|customercode|userid|outletcode)$/),
-    clientName: findIdx(/^(clientname|agentname|retailername|merchantname|name|outletname)$/),
-    mobile: findIdx(/^(clientmobileno|clientmobile|mobile|mobileno|phone|contact|agentmobile|customermobile)$/),
-    parentName: findIdx(/^(parentname|distributorname|distributor|parent|supername)$/),
+    txnId: findIdx(/^(txnid|transactionid|receiptid|rrn|referenceno|refno|id)$/),
+    date: findIdx(/^(transactiondatetime|txndatetime|txndate|transactiondate|orderdate|rechargedate|date|createdon|createdat|timestamp|time)$/),
+    clientId: findIdx(/^(kioskcode|kioskid|agentcode|retailerid|clientid|merchantid|agentid|customercode|loginmobilenumber|userid|outletcode)$/),
+    clientName: findIdx(/^(customername|clientname|agentname|retailername|merchantname|name|outletname)$/),
+    mobile: findIdx(/^(clientmobileno|clientmobile|loginmobilenumber|rechargenumber|mobile|mobileno|phone|contact|agentmobile|customermobile)$/),
+    parentName: findIdx(/^(parentname|distributorname|companyname|distributor|parent|supername)$/),
     parentMobile: findIdx(/^(parentmobileno|parentmobile|distributormobile|distributorphoneno|supermobile)$/),
-    volume: findIdx(/^(amount|volume|txnamount|totalamount|transactionamount|grossamount)$/),
+    volume: findIdx(/^(rechargeamount|amount|volume|txnamount|totalamount|transactionamount|grossamount)$/),
     commission: findIdx(/^(commissionamount|commission|comm|margin|retailercommission|revenue)$/),
     txnCount: findIdx(/^(totalnumberoftransaction|totalnumberoftransactions|count|txncount|numberoftxns)$/),
-    status: findIdx(/^(status|txnstatus|transactionstatus|recordstatus)$/),
-    state: findIdx(/^(state|citystate|region)$/)
+    status: findIdx(/^(paymentstatus|rechargestatus|status|txnstatus|transactionstatus|recordstatus)$/),
+    state: findIdx(/^(statename|state|citystate|region)$/)
   };
 }
 
@@ -497,6 +500,100 @@ function normalizeDateString(dateVal) {
   }
 
   return Utilities.formatDate(new Date(), 'Asia/Kolkata', 'yyyy-MM-dd');
+}
+
+/**
+ * Universal Robust Sales Row Parser:
+ * Intelligently extracts all fields from a Sales_Data row even if columns were shifted,
+ * preventing mobile numbers from ever being counted as transaction counts!
+ */
+function parseSalesRow(row) {
+  if (!row || !Array.isArray(row) || row.length === 0) {
+    return {
+      txnId: '',
+      dateRaw: '',
+      clientId: '',
+      clientName: '',
+      mobile: '',
+      parentName: '-',
+      parentMobile: '-',
+      serviceName: 'General',
+      txnCount: 1,
+      volume: 0,
+      commission: 0
+    };
+  }
+
+  const txnId = String(row[0] || '');
+  const dateRaw = row[1];
+  let clientId = String(row[2] || '');
+  let clientName = String(row[3] || '');
+  let mobile = String(row[4] || '');
+  let parentName = '-';
+  let parentMobile = '-';
+  let serviceName = 'General';
+  let txnCount = 1;
+  let volume = 0;
+  let commission = 0;
+
+  // Detect 12-column schema vs shifted/10-column schema:
+  // If row[6] is a 10-digit number (e.g. phone number > 100,000,000) or row[7] is a known service name:
+  const col6Num = Number(row[6]);
+  const col7Str = String(row[7] || '').trim().toUpperCase();
+  const isShiftedOr12Col = (row.length >= 11) && (
+    col6Num > 100000000 ||
+    /^(ZAP|RISL|B2C|IMPS|NEFT)/i.test(col7Str) ||
+    isNaN(row[5]) ||
+    row[5] === '-'
+  );
+
+  if (isShiftedOr12Col) {
+    parentName = row[5] ? String(row[5]) : '-';
+    parentMobile = row[6] ? String(row[6]) : '-';
+    serviceName = row[7] ? String(row[7]).trim() : 'General';
+    txnCount = Number(row[8]) || 1;
+    volume = Number(row[9]) || 0;
+    commission = Number(row[10]) || 0;
+  } else {
+    // Standard 10-column schema
+    serviceName = row[5] ? String(row[5]).trim() : 'General';
+    txnCount = Number(row[6]) || 1;
+    volume = Number(row[7]) || 0;
+    commission = Number(row[8]) || 0;
+  }
+
+  // Guard: Txn count cannot be a phone number (> 50,000)
+  if (txnCount > 50000) {
+    if (parentMobile === '-' && txnCount > 1000000000) {
+      parentMobile = String(txnCount);
+    }
+    txnCount = 1;
+  }
+
+  // Clean Service Name: if service name is a person's name or empty, extract from txnId prefix
+  if (!serviceName || serviceName === '-' || serviceName.length > 25) {
+    if (txnId.startsWith('RISLRECHARGE')) serviceName = 'RISLRECHARGE';
+    else if (txnId.startsWith('RISLDMT')) serviceName = 'RISLDMT';
+    else if (txnId.startsWith('RISLUPI')) serviceName = 'RISLUPI';
+    else if (txnId.startsWith('ZAPAEPS')) serviceName = 'ZAPAEPS';
+    else if (txnId.startsWith('ZAPUPI')) serviceName = 'ZAPUPI';
+    else if (txnId.startsWith('ZAPRECHARGE')) serviceName = 'ZAPRECHARGE';
+    else if (txnId.startsWith('B2C')) serviceName = 'B2C';
+  }
+
+  return {
+    txnId: txnId,
+    dateRaw: dateRaw,
+    clientId: clientId,
+    clientName: clientName,
+    mobile: mobile,
+    parentName: parentName,
+    parentMobile: parentMobile,
+    serviceName: serviceName,
+    txnCount: txnCount,
+    volume: volume,
+    commission: commission
+  };
 }
 
 /**
@@ -685,11 +782,19 @@ function ensureSheetsExist(ss) {
     clientsSheet.getRange(1, 1, 1, 13).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
   }
 
-  // 4. Sales_Data (12 Columns with Parent Distributor Hierarchy)
+  // 4. Sales_Data (Standardize to 12 Columns with Parent Distributor Hierarchy)
   let salesSheet = getOrCreateSheet(ss, TABS.SALES);
+  const expectedSalesHeaders = ['Txn_ID', 'Date', 'Kiosk_ID', 'Client_Name', 'Mobile', 'Parent_Name', 'Parent_Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp'];
   if (salesSheet.getLastRow() === 0) {
-    salesSheet.appendRow(['Txn_ID', 'Date', 'Kiosk_ID', 'Client_Name', 'Mobile', 'Parent_Name', 'Parent_Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp']);
+    salesSheet.appendRow(expectedSalesHeaders);
     salesSheet.getRange(1, 1, 1, 12).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+  } else {
+    // Check if Row 1 headers need update
+    const currentH = salesSheet.getRange(1, 1, 1, Math.max(salesSheet.getLastColumn(), 12)).getValues()[0];
+    const hasParent = currentH.some(h => String(h).toLowerCase().includes('parent'));
+    if (!hasParent) {
+      salesSheet.getRange(1, 1, 1, 12).setValues([expectedSalesHeaders]).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+    }
   }
 
   // 5. Calling_Logs
@@ -962,7 +1067,8 @@ function getInitialDataHandler(params) {
   // High-Speed Loop over Sales Data
   for (let i = 1; i < salesData.length; i++) {
     const row = salesData[i];
-    const dateRaw = row[1];
+    const parsed = parseSalesRow(row);
+    const dateRaw = parsed.dateRaw;
     let year = 0;
     let month = -1;
     let dStr = '';
@@ -979,8 +1085,8 @@ function getInitialDataHandler(params) {
       month = parseInt(dStr.substring(5, 7), 10) - 1;
     }
 
-    const txnCount = Number(row[cntIdx]) || 1;
-    const vol = Number(row[volIdx]) || 0;
+    const txnCount = parsed.txnCount;
+    const vol = parsed.volume;
 
     if (year === curYear) {
       yearlySales.volume += vol;
@@ -1007,8 +1113,8 @@ function getInitialDataHandler(params) {
       todaySales.count += txnCount;
     }
 
-    const sName = String(row[svcIdx] || '').trim().toUpperCase();
-    if (sName) {
+    const sName = parsed.serviceName.toUpperCase();
+    if (sName && sName !== '-') {
       if (!serviceTotals[sName]) serviceTotals[sName] = { volume: 0, count: 0 };
       serviceTotals[sName].volume += vol;
       serviceTotals[sName].count += txnCount;
@@ -1066,19 +1172,22 @@ function getInitialDataHandler(params) {
     .slice(0, 5);
 
   const recentRows = salesData.slice(1).slice(-100).reverse();
-  const recentSales = recentRows.map(r => ({
-    txnId: r[0],
-    date: fastFormatDate(r[1]),
-    clientId: r[2],
-    clientName: r[3],
-    mobile: r[4],
-    parentName: pNameIdx !== -1 ? (r[pNameIdx] || '-') : '-',
-    parentMobile: pMobIdx !== -1 ? (r[pMobIdx] || '-') : '-',
-    serviceName: r[svcIdx] || 'General',
-    txnCount: Number(r[cntIdx]) || 1,
-    volume: Number(r[volIdx]) || 0,
-    commission: Number(r[commIdx]) || 0
-  }));
+  const recentSales = recentRows.map(r => {
+    const p = parseSalesRow(r);
+    return {
+      txnId: p.txnId,
+      date: fastFormatDate(p.dateRaw),
+      clientId: p.clientId,
+      clientName: p.clientName,
+      mobile: p.mobile,
+      parentName: p.parentName,
+      parentMobile: p.parentMobile,
+      serviceName: p.serviceName,
+      txnCount: p.txnCount,
+      volume: p.volume,
+      commission: p.commission
+    };
+  });
 
   let services = ZAPURSE_CONFIG.SERVICE_TYPES;
   if (configMap['Services_List']) {
@@ -1252,33 +1361,25 @@ function getClientHistoryHandler(clientId) {
   let transactions = [];
   if (salesSheet) {
     const salesData = salesSheet.getDataRange().getValues();
-    const headers = salesData.length > 0 ? salesData[0].map(h => String(h).trim().toLowerCase()) : [];
-    const pNameIdx = headers.indexOf('parent_name');
-    const pMobIdx = headers.indexOf('parent_mobile');
-    const svcIdx = headers.indexOf('service_name') !== -1 ? headers.indexOf('service_name') : (pNameIdx !== -1 ? 7 : 5);
-    const cntIdx = headers.indexOf('txn_count') !== -1 ? headers.indexOf('txn_count') : (pNameIdx !== -1 ? 8 : 6);
-    const volIdx = headers.indexOf('volume_amount') !== -1 ? headers.indexOf('volume_amount') : (pNameIdx !== -1 ? 9 : 7);
-    const commIdx = headers.indexOf('commission_revenue') !== -1 ? headers.indexOf('commission_revenue') : (pNameIdx !== -1 ? 10 : 8);
 
     for (let i = 1; i < salesData.length; i++) {
-      if (String(salesData[i][2]) === String(clientId)) {
-        const rowPName = pNameIdx !== -1 ? salesData[i][pNameIdx] : '';
-        const rowPMob = pMobIdx !== -1 ? salesData[i][pMobIdx] : '';
-        if (clientInfo && !clientInfo.parentName && rowPName) clientInfo.parentName = rowPName;
-        if (clientInfo && !clientInfo.parentMobile && rowPMob) clientInfo.parentMobile = rowPMob;
+      const p = parseSalesRow(salesData[i]);
+      if (String(p.clientId) === String(clientId)) {
+        if (clientInfo && !clientInfo.parentName && p.parentName !== '-') clientInfo.parentName = p.parentName;
+        if (clientInfo && !clientInfo.parentMobile && p.parentMobile !== '-') clientInfo.parentMobile = p.parentMobile;
 
         transactions.push({
-          txnId: salesData[i][0],
-          date: fastFormatDate(salesData[i][1]),
-          clientId: salesData[i][2],
-          clientName: salesData[i][3],
-          mobile: salesData[i][4],
-          parentName: rowPName || '-',
-          parentMobile: rowPMob || '-',
-          serviceName: salesData[i][svcIdx] || 'General',
-          txnCount: Number(salesData[i][cntIdx]) || 1,
-          volume: Number(salesData[i][volIdx]) || 0,
-          commission: Number(salesData[i][commIdx]) || 0
+          txnId: p.txnId,
+          date: fastFormatDate(p.dateRaw),
+          clientId: p.clientId,
+          clientName: p.clientName,
+          mobile: p.mobile,
+          parentName: p.parentName,
+          parentMobile: p.parentMobile,
+          serviceName: p.serviceName,
+          txnCount: p.txnCount,
+          volume: p.volume,
+          commission: p.commission
         });
       }
     }
@@ -1346,14 +1447,6 @@ function getServiceDataHandler(serviceName) {
     return { serviceName: serviceName, totalVolume: 0, totalTxnCount: 0, topMerchants: [], bottomMerchants: [], transactions: [] };
   }
 
-  const headers = salesData[0].map(h => String(h).trim().toLowerCase());
-  const pNameIdx = headers.indexOf('parent_name');
-  const pMobIdx = headers.indexOf('parent_mobile');
-  const svcIdx = headers.indexOf('service_name') !== -1 ? headers.indexOf('service_name') : (pNameIdx !== -1 ? 7 : 5);
-  const cntIdx = headers.indexOf('txn_count') !== -1 ? headers.indexOf('txn_count') : (pNameIdx !== -1 ? 8 : 6);
-  const volIdx = headers.indexOf('volume_amount') !== -1 ? headers.indexOf('volume_amount') : (pNameIdx !== -1 ? 9 : 7);
-  const commIdx = headers.indexOf('commission_revenue') !== -1 ? headers.indexOf('commission_revenue') : (pNameIdx !== -1 ? 10 : 8);
-
   let totalVolume = 0;
   let totalTxnCount = 0;
   const merchantMap = {};
@@ -1361,56 +1454,48 @@ function getServiceDataHandler(serviceName) {
 
   for (let i = 1; i < salesData.length; i++) {
     const row = salesData[i];
-    const rowSvc = String(row[svcIdx] || '').trim().toUpperCase();
+    const p = parseSalesRow(row);
+    const rowSvc = p.serviceName.toUpperCase();
     if (rowSvc !== targetService && targetService !== 'ALL') {
       continue;
     }
 
-    const txnCount = Number(row[cntIdx]) || 1;
-    const vol = Number(row[volIdx]) || 0;
-    const comm = Number(row[commIdx]) || 0;
-    const clientId = String(row[2] || '');
-    const clientName = String(row[3] || '');
-    const mobile = String(row[4] || '');
-    const pName = pNameIdx !== -1 ? String(row[pNameIdx] || '-') : '-';
-    const pMob = pMobIdx !== -1 ? String(row[pMobIdx] || '-') : '-';
-
-    totalVolume += vol;
-    totalTxnCount += txnCount;
+    totalVolume += p.volume;
+    totalTxnCount += p.txnCount;
 
     // Aggregate by Merchant
-    if (clientId) {
-      if (!merchantMap[clientId]) {
-        merchantMap[clientId] = {
-          clientId: clientId,
-          clientName: clientName || clientId,
-          mobile: mobile,
-          parentName: pName,
-          parentMobile: pMob,
+    if (p.clientId) {
+      if (!merchantMap[p.clientId]) {
+        merchantMap[p.clientId] = {
+          clientId: p.clientId,
+          clientName: p.clientName || p.clientId,
+          mobile: p.mobile,
+          parentName: p.parentName,
+          parentMobile: p.parentMobile,
           volume: 0,
           txnCount: 0
         };
       }
-      merchantMap[clientId].volume += vol;
-      merchantMap[clientId].txnCount += txnCount;
-      if (!merchantMap[clientId].mobile && mobile) merchantMap[clientId].mobile = mobile;
-      if (merchantMap[clientId].parentName === '-' && pName !== '-') merchantMap[clientId].parentName = pName;
-      if (merchantMap[clientId].parentMobile === '-' && pMob !== '-') merchantMap[clientId].parentMobile = pMob;
+      merchantMap[p.clientId].volume += p.volume;
+      merchantMap[p.clientId].txnCount += p.txnCount;
+      if (!merchantMap[p.clientId].mobile && p.mobile) merchantMap[p.clientId].mobile = p.mobile;
+      if (merchantMap[p.clientId].parentName === '-' && p.parentName !== '-') merchantMap[p.clientId].parentName = p.parentName;
+      if (merchantMap[p.clientId].parentMobile === '-' && p.parentMobile !== '-') merchantMap[p.clientId].parentMobile = p.parentMobile;
     }
 
     // Collect transaction record
     transactions.push({
-      txnId: row[0],
-      date: fastFormatDate(row[1]),
-      clientId: clientId,
-      clientName: clientName,
-      mobile: mobile,
-      parentName: pName,
-      parentMobile: pMob,
-      serviceName: row[svcIdx] || serviceName,
-      txnCount: txnCount,
-      volume: vol,
-      commission: comm
+      txnId: p.txnId,
+      date: fastFormatDate(p.dateRaw),
+      clientId: p.clientId,
+      clientName: p.clientName,
+      mobile: p.mobile,
+      parentName: p.parentName,
+      parentMobile: p.parentMobile,
+      serviceName: p.serviceName,
+      txnCount: p.txnCount,
+      volume: p.volume,
+      commission: p.commission
     });
   }
 
