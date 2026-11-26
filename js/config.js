@@ -5,6 +5,9 @@
  */
 
 const Config = {
+  // Default Permanent Live Google Apps Script Web App URL
+  DEFAULT_API_URL: 'https://script.google.com/macros/s/AKfycbwWTIOKwbKAbYULkoQfAUubevtRqpQ71kDiaQ8vp3vPy--uMT3o2gFx2fveFPd6Ayo2DA/exec',
+
   // Storage Keys
   STORAGE_KEY_API_URL: 'zapurse_crm_api_url',
   STORAGE_KEY_USER: 'zapurse_crm_active_user',
@@ -38,7 +41,7 @@ const Config = {
    * Get Active Google Apps Script Web App URL
    */
   getApiUrl() {
-    return localStorage.getItem(this.STORAGE_KEY_API_URL) || '';
+    return localStorage.getItem(this.STORAGE_KEY_API_URL) || this.DEFAULT_API_URL;
   },
 
   /**
@@ -54,12 +57,12 @@ const Config = {
   },
 
   /**
-   * Check if running in Standalone Demo Mode (when no API URL is configured)
+   * Check if running in Standalone Demo Mode (default: false since live URL is configured)
    */
   isDemoMode() {
     const manualDemo = localStorage.getItem(this.STORAGE_KEY_DEMO_MODE) === 'true';
     const noUrl = !this.getApiUrl();
-    return manualDemo || noUrl;
+    return manualDemo || (noUrl && !this.DEFAULT_API_URL);
   },
 
   setDemoMode(enable) {
