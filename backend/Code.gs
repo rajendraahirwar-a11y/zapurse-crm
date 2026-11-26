@@ -747,6 +747,10 @@ function doGet(e) {
         responseData = getAdminConfigHandler();
         break;
 
+      case 'getServiceData':
+        responseData = getServiceDataHandler(params.service);
+        break;
+
       case 'getReports':
         responseData = getReportsHandler(params);
         break;
@@ -794,6 +798,10 @@ function doPost(e) {
     switch (action) {
       case 'login':
         responseData = loginHandler(payload.username, payload.password);
+        break;
+
+      case 'getServiceData':
+        responseData = getServiceDataHandler(payload.service);
         break;
 
       case 'saveCallLog':
@@ -936,6 +944,7 @@ function getInitialDataHandler(params) {
   let todaySales = { volume: 0, count: 0 };
   let monthlySales = { volume: 0, count: 0 };
   let yearlySales = { volume: 0, count: 0 };
+  const serviceTotals = {};
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   let monthlyChartVolumes = new Array(12).fill(0);
@@ -996,6 +1005,13 @@ function getInitialDataHandler(params) {
     if (dStr === todayStr) {
       todaySales.volume += vol;
       todaySales.count += txnCount;
+    }
+
+    const sName = String(row[svcIdx] || '').trim().toUpperCase();
+    if (sName) {
+      if (!serviceTotals[sName]) serviceTotals[sName] = { volume: 0, count: 0 };
+      serviceTotals[sName].volume += vol;
+      serviceTotals[sName].count += txnCount;
     }
   }
 
@@ -1079,6 +1095,7 @@ function getInitialDataHandler(params) {
     },
     chartData: chartData,
     lowestPerforming: lowestPerforming,
+    serviceTotals: serviceTotals,
     recentSales: recentSales,
     services: services,
     config: {
@@ -1308,6 +1325,110 @@ function getClientHistoryHandler(clientId) {
     last7DaysSales: past7Days,
     total7DayVolume: total7DayVolume,
     total7DayTxns: total7DayTxns
+  };
+}
+
+/**
+ * Service Data Handler: aggregates all volume, count, top/bottom merchants, and latest transactions for a specific service
+ */
+function getServiceDataHandler(serviceName) {
+  if (!serviceName) return { error: 'serviceName required' };
+  const targetService = String(serviceName).trim().toUpperCase();
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const salesSheet = ss.getSheetByName(TABS.SALES);
+  if (!salesSheet) {
+    return { serviceName: serviceName, totalVolume: 0, totalTxnCount: 0, topMerchants: [], bottomMerchants: [], transactions: [] };
+  }
+
+  const salesData = salesSheet.getDataRange().getValues();
+  if (salesData.length <= 1) {
+    return { serviceName: serviceName, totalVolume: 0, totalTxnCount: 0, topMerchants: [], bottomMerchants: [], transactions: [] };
+  }
+
+  const headers = salesData[0].map(h => String(h).trim().toLowerCase());
+  const pNameIdx = headers.indexOf('parent_name');
+  const pMobIdx = headers.indexOf('parent_mobile');
+  const svcIdx = headers.indexOf('service_name') !== -1 ? headers.indexOf('service_name') : (pNameIdx !== -1 ? 7 : 5);
+  const cntIdx = headers.indexOf('txn_count') !== -1 ? headers.indexOf('txn_count') : (pNameIdx !== -1 ? 8 : 6);
+  const volIdx = headers.indexOf('volume_amount') !== -1 ? headers.indexOf('volume_amount') : (pNameIdx !== -1 ? 9 : 7);
+  const commIdx = headers.indexOf('commission_revenue') !== -1 ? headers.indexOf('commission_revenue') : (pNameIdx !== -1 ? 10 : 8);
+
+  let totalVolume = 0;
+  let totalTxnCount = 0;
+  const merchantMap = {};
+  const transactions = [];
+
+  for (let i = 1; i < salesData.length; i++) {
+    const row = salesData[i];
+    const rowSvc = String(row[svcIdx] || '').trim().toUpperCase();
+    if (rowSvc !== targetService && targetService !== 'ALL') {
+      continue;
+    }
+
+    const txnCount = Number(row[cntIdx]) || 1;
+    const vol = Number(row[volIdx]) || 0;
+    const comm = Number(row[commIdx]) || 0;
+    const clientId = String(row[2] || '');
+    const clientName = String(row[3] || '');
+    const mobile = String(row[4] || '');
+    const pName = pNameIdx !== -1 ? String(row[pNameIdx] || '-') : '-';
+    const pMob = pMobIdx !== -1 ? String(row[pMobIdx] || '-') : '-';
+
+    totalVolume += vol;
+    totalTxnCount += txnCount;
+
+    // Aggregate by Merchant
+    if (clientId) {
+      if (!merchantMap[clientId]) {
+        merchantMap[clientId] = {
+          clientId: clientId,
+          clientName: clientName || clientId,
+          mobile: mobile,
+          parentName: pName,
+          parentMobile: pMob,
+          volume: 0,
+          txnCount: 0
+        };
+      }
+      merchantMap[clientId].volume += vol;
+      merchantMap[clientId].txnCount += txnCount;
+      if (!merchantMap[clientId].mobile && mobile) merchantMap[clientId].mobile = mobile;
+      if (merchantMap[clientId].parentName === '-' && pName !== '-') merchantMap[clientId].parentName = pName;
+      if (merchantMap[clientId].parentMobile === '-' && pMob !== '-') merchantMap[clientId].parentMobile = pMob;
+    }
+
+    // Collect transaction record
+    transactions.push({
+      txnId: row[0],
+      date: fastFormatDate(row[1]),
+      clientId: clientId,
+      clientName: clientName,
+      mobile: mobile,
+      parentName: pName,
+      parentMobile: pMob,
+      serviceName: row[svcIdx] || serviceName,
+      txnCount: txnCount,
+      volume: vol,
+      commission: comm
+    });
+  }
+
+  // Merchants sorted by volume
+  const merchantList = Object.values(merchantMap);
+  const topMerchants = [...merchantList].sort((a, b) => b.volume - a.volume).slice(0, 5);
+  const bottomMerchants = [...merchantList].sort((a, b) => a.volume - b.volume).slice(0, 5);
+
+  // Take latest 250 transactions (reversed so latest is first)
+  const latestTxns = transactions.slice(-250).reverse();
+
+  return {
+    serviceName: serviceName,
+    totalVolume: totalVolume,
+    totalTxnCount: totalTxnCount,
+    topMerchants: topMerchants,
+    bottomMerchants: bottomMerchants,
+    transactions: latestTxns
   };
 }
 

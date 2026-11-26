@@ -313,6 +313,42 @@ const Api = {
         };
       }
 
+      case 'getServiceData': {
+        const sName = (params.service || '').toUpperCase();
+        const sales = (db.sales || []).filter(s => (s.serviceName || '').toUpperCase() === sName);
+        let totalVol = 0;
+        let totalTxns = 0;
+        const merchantMap = {};
+        sales.forEach(s => {
+          totalVol += Number(s.volume) || 0;
+          totalTxns += Number(s.txnCount) || 1;
+          if (!merchantMap[s.clientId]) {
+            merchantMap[s.clientId] = {
+              clientId: s.clientId,
+              clientName: s.clientName,
+              mobile: s.mobile,
+              parentName: s.parentName || '-',
+              parentMobile: s.parentMobile || '-',
+              volume: 0,
+              txnCount: 0
+            };
+          }
+          merchantMap[s.clientId].volume += Number(s.volume) || 0;
+          merchantMap[s.clientId].txnCount += Number(s.txnCount) || 1;
+        });
+        const mList = Object.values(merchantMap);
+        const topMerchants = [...mList].sort((a, b) => b.volume - a.volume).slice(0, 5);
+        const bottomMerchants = [...mList].sort((a, b) => a.volume - b.volume).slice(0, 5);
+        return {
+          serviceName: params.service,
+          totalVolume: totalVol,
+          totalTxnCount: totalTxns,
+          topMerchants: topMerchants,
+          bottomMerchants: bottomMerchants,
+          transactions: [...sales].reverse().slice(0, 200)
+        };
+      }
+
       case 'getReports': {
         const callerStats = {};
         db.calls.forEach(c => {

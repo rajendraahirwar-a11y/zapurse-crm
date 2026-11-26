@@ -17,21 +17,21 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #0B151C;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #1A4B64;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #256180;
 }
 
 /* Active Nav link pulse */
 .nav-link.active {
-  background: linear-gradient(90deg, rgba(2, 132, 199, 0.25) 0%, rgba(2, 132, 199, 0.05) 100%);
-  border-left: 4px solid #0284c7;
-  color: #38bdf8;
+  background: linear-gradient(90deg, rgba(161, 178, 43, 0.22) 0%, rgba(33, 112, 149, 0.08) 100%);
+  border-left: 4px solid #A1B22B;
+  color: #C0CC64;
   font-weight: 600;
 }
 
