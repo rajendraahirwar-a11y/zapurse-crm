@@ -218,54 +218,53 @@ const App = {
       text: 'Fetch live MIS Report CSV directly from Zapurse fintech servers for all 6 services (ZAPAEPS, ZAPUPI, ZAPRECHARGE, RISLUPI, RISLDMT, RISLRECHARGE):',
       icon: 'info',
       showCancelButton: true,
-      confirmButtonText: '⚡ Quick Sync (Last 30 Days)',
+      confirmButtonText: '⚡ Quick Sync (New Data)',
       showDenyButton: true,
-      denyButtonText: '📅 Custom Date Range',
+      denyButtonText: '🧹 Clean & Resync (Fix Dates)',
       confirmButtonColor: '#0284c7',
-      denyButtonColor: '#475569'
+      denyButtonColor: '#10b981',
+      cancelButtonText: 'Cancel'
     });
-
-    let fromDate = '';
-    let toDate = '';
 
     if (syncChoice === false) return; // Cancelled
 
-    if (syncChoice === undefined) {
-      // User clicked 'Custom Date Range' (Deny button)
-      const { value: formValues } = await Swal.fire({
-        title: 'Custom MIS Sync Dates',
-        html: `
-          <div class="space-y-3 text-left text-xs">
-            <div>
-              <label class="block font-semibold mb-1">From Date (DD-MM-YYYY)</label>
-              <input id="swal-sync-from" class="swal2-input !m-0 !w-full !text-xs !h-9" value="01-08-2026">
-            </div>
-            <div>
-              <label class="block font-semibold mb-1">To Date (DD-MM-YYYY)</label>
-              <input id="swal-sync-to" class="swal2-input !m-0 !w-full !text-xs !h-9" value="25-11-2026">
-            </div>
-          </div>
-        `,
-        focusConfirm: false,
+    let isClean = false;
+    let fromDate = '';
+    let toDate = '';
+
+    const now = new Date();
+    const toStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    const past30 = new Date();
+    past30.setDate(now.getDate() - 30);
+    const fromStr = `${String(past30.getDate()).padStart(2, '0')}-${String(past30.getMonth() + 1).padStart(2, '0')}-${past30.getFullYear()}`;
+
+    if (syncChoice === true) {
+      // Quick Sync (Incremental / Last 30 Days)
+      fromDate = fromStr;
+      toDate = toStr;
+      isClean = false;
+    } else if (syncChoice === undefined) {
+      // User clicked 'Clean & Resync (Fix Dates)' (Deny button)
+      const confirmClean = await Swal.fire({
+        title: '🧹 Clean & Resync Database?',
+        text: 'This will wipe old duplicate sales records and re-sync fresh MIS data with exact transaction dates. (Calling Logs and Users will be safe). Proceed?',
+        icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Start Live Sync',
-        preConfirm: () => {
-          return {
-            from: document.getElementById('swal-sync-from').value.trim(),
-            to: document.getElementById('swal-sync-to').value.trim()
-          };
-        }
+        confirmButtonText: 'Yes, Clean & Resync',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#ef4444'
       });
-      if (!formValues) return;
-      fromDate = formValues.from;
-      toDate = formValues.to;
+      if (!confirmClean.isConfirmed) return;
+      fromDate = fromStr;
+      toDate = toStr;
+      isClean = true;
     }
 
     const icon = document.getElementById('sync-icon');
     if (icon) icon.classList.add('animate-spin');
 
     Swal.fire({
-      title: 'Connecting to Zapurse MIS API...',
+      title: isClean ? '🧹 Clean Resyncing...' : '🔄 Connecting to Zapurse MIS API...',
       text: 'Fetching and processing CSV reports across all services...',
       allowOutsideClick: false,
       didOpen: () => {
@@ -274,17 +273,22 @@ const App = {
     });
 
     try {
-      const res = await Api.get('syncExternalSalesAPI', { fromDate, toDate });
+      const res = await Api.get('syncExternalSalesAPI', { 
+        fromDate: fromDate, 
+        toDate: toDate, 
+        clean: isClean ? 'true' : 'false' 
+      });
       
       Swal.fire({
         icon: res.success ? 'success' : 'warning',
-        title: 'API Sync Completed!',
+        title: isClean ? 'Clean Resync Completed!' : 'API Sync Completed!',
         html: `
           <div class="text-xs text-left space-y-1">
             <p><strong>Status:</strong> ${res.success ? 'Success' : 'Error'}</p>
             <p><strong>Processed Rows:</strong> ${res.totalRowsProcessed || 0}</p>
-            <p><strong>New Transactions Added:</strong> ${res.recordsAdded || 0}</p>
+            <p><strong>Clean Records Added:</strong> ${res.recordsAdded || 0}</p>
             <p><strong>Active Clients:</strong> ${res.clientsCount || 0}</p>
+            <p class="text-emerald-400 font-semibold mt-2">✓ Yesterday Sales & Analytics Updated!</p>
           </div>
         `
       });

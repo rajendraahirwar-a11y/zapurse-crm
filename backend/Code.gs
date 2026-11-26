@@ -47,9 +47,10 @@ const TABS = {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚡ Zapurse CRM')
-    .addItem('🔄 Sync All Services (Last 30 Days)', 'menuSyncLast30Days')
-    .addItem('📅 Sync All Services (Custom / Year Range)', 'menuSyncFullRange')
+    .addItem('🔄 Quick Sync (Incremental / Last 30 Days)', 'menuSyncLast30Days')
+    .addItem('📅 Sync Custom Date Range', 'menuSyncFullRange')
     .addSeparator()
+    .addItem('🧹 Clean & Resync (Fix Dates & Duplicates)', 'menuCleanAndResync')
     .addItem('🛠️ Initialize / Reset Database Tabs', 'setupDatabase')
     .addItem('⏰ Setup Automatic Daily Sync Trigger (Nightly 2 AM)', 'setupDailySyncTrigger')
     .addToUi();
@@ -60,8 +61,8 @@ function menuSyncLast30Days() {
   const past30 = new Date();
   past30.setDate(now.getDate() - 30);
 
-  const fromStr = Utilities.formatDate(past30, Session.getScriptTimeZone(), 'dd-MM-yyyy');
-  const toStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+  const fromStr = Utilities.formatDate(past30, 'Asia/Kolkata', 'dd-MM-yyyy');
+  const toStr = Utilities.formatDate(now, 'Asia/Kolkata', 'dd-MM-yyyy');
 
   SpreadsheetApp.getActiveSpreadsheet().toast('Starting Zapurse API Sync for all 6 services...', 'Syncing', 5);
   const result = syncAllZapurseServices(fromStr, toStr);
@@ -79,11 +80,11 @@ function menuSyncFullRange() {
   const ui = SpreadsheetApp.getUi();
   const fromPrompt = ui.prompt('Zapurse MIS Sync', 'Enter From Date (DD-MM-YYYY):', ui.ButtonSet.OK_CANCEL);
   if (fromPrompt.getSelectedButton() !== ui.Button.OK) return;
-  const fromDate = fromPrompt.getResponseText().trim() || '01-08-2026';
+  const fromDate = fromPrompt.getResponseText().trim() || '01-11-2026';
 
   const toPrompt = ui.prompt('Zapurse MIS Sync', 'Enter To Date (DD-MM-YYYY):', ui.ButtonSet.OK_CANCEL);
   if (toPrompt.getSelectedButton() !== ui.Button.OK) return;
-  const toDate = toPrompt.getResponseText().trim() || '25-11-2026';
+  const toDate = toPrompt.getResponseText().trim() || '26-11-2026';
 
   SpreadsheetApp.getActiveSpreadsheet().toast(`Syncing from ${fromDate} to ${toDate}...`, 'Syncing', 5);
   const result = syncAllZapurseServices(fromDate, toDate);
@@ -94,6 +95,59 @@ function menuSyncFullRange() {
     `• New Records Added: ${result.recordsAdded}\n` +
     `• Total Active Clients: ${result.clientsCount}`
   );
+}
+
+function menuCleanAndResync() {
+  const ui = SpreadsheetApp.getUi();
+  const resp = ui.alert(
+    'Clean & Resync Zapurse Database',
+    'This will clear existing duplicate sales entries and re-fetch clean, accurate MIS records with exact transaction dates from Zapurse API.\n\nNote: Calling Logs and Users will NOT be affected.\n\nDo you want to continue?',
+    ui.ButtonSet.YES_NO
+  );
+  if (resp !== ui.Button.YES) return;
+
+  const now = new Date();
+  const past30 = new Date();
+  past30.setDate(now.getDate() - 30);
+  const fromStr = Utilities.formatDate(past30, 'Asia/Kolkata', 'dd-MM-yyyy');
+  const toStr = Utilities.formatDate(now, 'Asia/Kolkata', 'dd-MM-yyyy');
+
+  SpreadsheetApp.getActiveSpreadsheet().toast('Clearing old data and fetching clean MIS records with correct dates...', 'Clean Resyncing', 15);
+  const result = cleanAndResyncDatabase(fromStr, toStr);
+
+  ui.alert(
+    `Clean Resync Completed!\n\n` +
+    `• Date Range: ${fromStr} to ${toStr}\n` +
+    `• Records Processed: ${result.totalRowsProcessed}\n` +
+    `• Clean Transactions Added: ${result.recordsAdded}\n` +
+    `• Active Clients: ${result.clientsCount}\n\n` +
+    `Yesterday Sales and Monthly Sales are now completely accurate!`
+  );
+}
+
+/**
+ * Clears old sales and re-syncs fresh, deduplicated records with proper dates
+ */
+function cleanAndResyncDatabase(fromDate, toDate, specificServices) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureSheetsExist(ss);
+
+  const salesSheet = ss.getSheetByName(TABS.SALES);
+  const clientsSheet = ss.getSheetByName(TABS.CLIENTS);
+
+  // Clear data rows in Sales_Data (leaving Row 1 headers intact)
+  const salesLastRow = salesSheet.getLastRow();
+  if (salesLastRow > 1) {
+    salesSheet.getRange(2, 1, salesLastRow - 1, salesSheet.getLastColumn()).clearContent();
+  }
+
+  // Clear data rows in Clients_Master (leaving Row 1 headers intact)
+  const clientsLastRow = clientsSheet.getLastRow();
+  if (clientsLastRow > 1) {
+    clientsSheet.getRange(2, 1, clientsLastRow - 1, clientsSheet.getLastColumn()).clearContent();
+  }
+
+  return syncAllZapurseServices(fromDate, toDate, specificServices);
 }
 
 /**
@@ -110,15 +164,15 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
   const clientsSheet = ss.getSheetByName(TABS.CLIENTS);
   const syncLogsSheet = ss.getSheetByName(TABS.SYNC_LOGS);
 
-  // Default dates if omitted
+  // Default dates if omitted (IST Timezone)
   const now = new Date();
   if (!toDate) {
-    toDate = Utilities.formatDate(now, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+    toDate = Utilities.formatDate(now, 'Asia/Kolkata', 'dd-MM-yyyy');
   }
   if (!fromDate) {
     let d = new Date();
     d.setDate(now.getDate() - 30);
-    fromDate = Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+    fromDate = Utilities.formatDate(d, 'Asia/Kolkata', 'dd-MM-yyyy');
   }
 
   const servicesToSync = specificServices && Array.isArray(specificServices) && specificServices.length > 0
@@ -139,7 +193,7 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
 
   // Build an in-memory map of existing Clients in Clients_Master
   const clientsData = clientsSheet.getDataRange().getValues();
-  const clientsMap = new Map(); // clientId -> rowIndex (1-based)
+  const clientsMap = new Map(); // clientId -> object
   for (let i = 1; i < clientsData.length; i++) {
     const cid = String(clientsData[i][0]).trim();
     if (cid) {
@@ -188,24 +242,48 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
         totalRowsProcessed++;
 
         // Extract values using dynamic column map
-        let txnId = colMap.txnId !== -1 ? String(row[colMap.txnId]).trim() : '';
-        let dateVal = colMap.date !== -1 ? String(row[colMap.date]).trim() : '';
-        let clientId = colMap.clientId !== -1 ? String(row[colMap.clientId]).trim() : '';
-        let clientName = colMap.clientName !== -1 ? String(row[colMap.clientName]).trim() : '';
-        let mobile = colMap.mobile !== -1 ? String(row[colMap.mobile]).trim() : '';
-        let volume = colMap.volume !== -1 ? Number(String(row[colMap.volume]).replace(/[^0-9.-]+/g, '')) || 0 : 0;
-        let commission = colMap.commission !== -1 ? Number(String(row[colMap.commission]).replace(/[^0-9.-]+/g, '')) || 0 : 0;
-        let txnCount = colMap.txnCount !== -1 ? (Number(row[colMap.txnCount]) || 1) : 1;
-        let statusVal = colMap.status !== -1 ? String(row[colMap.status]).trim().toUpperCase() : 'SUCCESS';
+        let txnId = colMap.txnId !== -1 && row[colMap.txnId] ? String(row[colMap.txnId]).trim() : '';
+        let dateVal = colMap.date !== -1 && row[colMap.date] ? String(row[colMap.date]).trim() : '';
+        let clientId = colMap.clientId !== -1 && row[colMap.clientId] ? String(row[colMap.clientId]).trim() : '';
+        let clientName = colMap.clientName !== -1 && row[colMap.clientName] ? String(row[colMap.clientName]).trim() : '';
+        let mobile = colMap.mobile !== -1 && row[colMap.mobile] ? String(row[colMap.mobile]).trim() : '';
+        let volume = colMap.volume !== -1 && row[colMap.volume] ? (Number(String(row[colMap.volume]).replace(/[^0-9.-]+/g, '')) || 0) : 0;
+        let commission = colMap.commission !== -1 && row[colMap.commission] ? (Number(String(row[colMap.commission]).replace(/[^0-9.-]+/g, '')) || 0) : 0;
+        let txnCount = colMap.txnCount !== -1 && row[colMap.txnCount] ? (Number(row[colMap.txnCount]) || 1) : 1;
+        let statusVal = colMap.status !== -1 && row[colMap.status] ? String(row[colMap.status]).trim().toUpperCase() : 'SUCCESS';
+        let stateVal = colMap.state !== -1 && row[colMap.state] ? String(row[colMap.state]).trim() : 'Rajasthan, India';
 
         // Filter out failed transactions if status column exists
         if (statusVal && statusVal.includes('FAIL')) {
           continue;
         }
 
-        // Generate synthetic Txn ID if missing
+        // Normalize Date to standard YYYY-MM-DD
+        let formattedDate = normalizeDateString(dateVal);
+
+        // Ensure Client ID & Name exist
+        if (!clientId) {
+          clientId = mobile ? `CL_${mobile}` : `CL_${serviceType}_${r}`;
+        }
+
+        // Reuse client details if already in clientsMap
+        if (clientsMap.has(clientId)) {
+          const existingC = clientsMap.get(clientId);
+          if (!clientName && existingC.clientName && !existingC.clientName.startsWith('Merchant ')) {
+            clientName = existingC.clientName;
+          }
+          if (!mobile && existingC.mobile) {
+            mobile = existingC.mobile;
+          }
+        }
+
+        if (!clientName) {
+          clientName = `Merchant ${clientId}`;
+        }
+
+        // Deterministic composite Txn ID if missing: prevents duplicates on re-sync
         if (!txnId) {
-          txnId = `TXN_${serviceType}_${Date.now()}_${r}`;
+          txnId = `${serviceType}_${formattedDate}_${clientId}_${txnCount}_${Math.round(volume)}`;
         }
 
         // Deduplication Check
@@ -213,17 +291,6 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
           continue; // Skip already inserted transactions
         }
         existingTxnIds.add(txnId);
-
-        // Normalize Date to YYYY-MM-DD
-        let formattedDate = normalizeDateString(dateVal);
-
-        // Ensure Client ID & Name exist
-        if (!clientId) {
-          clientId = mobile ? `CL_${mobile}` : `CL_${r}`;
-        }
-        if (!clientName) {
-          clientName = `Merchant ${clientId}`;
-        }
 
         // Prepare row for Sales_Data:
         // ['Txn_ID', 'Date', 'Client_ID', 'Client_Name', 'Mobile', 'Service_Name', 'Txn_Count', 'Volume_Amount', 'Commission_Revenue', 'Sync_Timestamp']
@@ -251,13 +318,16 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
             c.lastTxnDate = formattedDate;
           }
           if (!c.mobile && mobile) c.mobile = mobile;
+          if ((!c.clientName || c.clientName.startsWith('Merchant ')) && clientName && !clientName.startsWith('Merchant ')) {
+            c.clientName = clientName;
+          }
         } else {
           // New Client to be inserted in Clients_Master
           clientsMap.set(clientId, {
             row: null, // New
             clientName: clientName,
             mobile: mobile,
-            cityState: 'Rajasthan, India',
+            cityState: stateVal,
             assignedUser: (clientsMap.size % 2 === 0) ? 'pooja' : 'amit',
             lastTxnDate: formattedDate,
             yearlySales: volume,
@@ -269,7 +339,7 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
       }
 
       serviceStatus[serviceType] = { count: serviceAddedCount, status: 'SUCCESS' };
-      Utilities.sleep(400); // Friendly throttle between API calls
+      Utilities.sleep(300); // Friendly throttle between API calls
 
     } catch (err) {
       Logger.log(`[Zapurse API] Error in service ${serviceType}: ${err.message}`);
@@ -277,13 +347,13 @@ function syncAllZapurseServices(fromDate, toDate, specificServices) {
     }
   }
 
-  // Batch insert new records into Sales_Data
+  // Batch insert new records into Sales_Data in one single call
   if (rowsToAppendSales.length > 0) {
     salesSheet.getRange(salesSheet.getLastRow() + 1, 1, rowsToAppendSales.length, rowsToAppendSales[0].length)
       .setValues(rowsToAppendSales);
   }
 
-  // Batch update or insert Clients_Master
+  // Batch update or insert Clients_Master in memory
   syncClientsMasterTable(clientsSheet, clientsMap);
 
   // Log in API_Sync_Logs
@@ -341,60 +411,104 @@ function fetchZapurseMISReportCsv(serviceType, fromDate, toDate) {
 
 /**
  * Dynamic Column Header Mapping for Flexible Zapurse MIS Reports
+ * Handles ZAPAEPS, ZAPUPI, ZAPRECHARGE, RISLUPI, RISLDMT, RISLRECHARGE headers
  */
 function mapCsvHeaders(headers) {
   const findIdx = (regex) => headers.findIndex(h => regex.test(h.replace(/[^a-z0-9]/g, '')));
 
   return {
     txnId: findIdx(/^(txnid|transactionid|rrn|referenceno|refno|id)$/),
-    date: findIdx(/^(date|txndate|transactiondate|createdon|createdat|timestamp|time)$/),
-    clientId: findIdx(/^(agentcode|retailerid|clientid|merchantid|agentid|customercode|userid|outletcode)$/),
-    clientName: findIdx(/^(agentname|retailername|clientname|merchantname|name|outletname)$/),
-    mobile: findIdx(/^(mobile|phone|contact|agentmobile|customermobile)$/),
+    date: findIdx(/^(transactiondatetime|txndatetime|txndate|transactiondate|date|createdon|createdat|timestamp|time)$/),
+    clientId: findIdx(/^(kioskcode|agentcode|retailerid|clientid|merchantid|agentid|customercode|userid|outletcode)$/),
+    clientName: findIdx(/^(clientname|agentname|retailername|merchantname|name|outletname)$/),
+    mobile: findIdx(/^(clientmobileno|mobile|mobileno|phone|contact|agentmobile|customermobile)$/),
     volume: findIdx(/^(amount|volume|txnamount|totalamount|transactionamount|grossamount)$/),
-    commission: findIdx(/^(commission|comm|margin|retailercommission|revenue)$/),
-    txnCount: findIdx(/^(count|txncount|numberoftxns)$/),
-    status: findIdx(/^(status|txnstatus|transactionstatus)$/)
+    commission: findIdx(/^(commissionamount|commission|comm|margin|retailercommission|revenue)$/),
+    txnCount: findIdx(/^(totalnumberoftransaction|totalnumberoftransactions|count|txncount|numberoftxns)$/),
+    status: findIdx(/^(status|txnstatus|transactionstatus|recordstatus)$/),
+    state: findIdx(/^(state|citystate|region)$/)
   };
 }
 
 /**
  * Normalizes varied Date strings to standard YYYY-MM-DD
+ * Supports: "25 - Nov - 2026", "25-Nov-2026", "25-11-2026", "25/11/2026", "2026-11-25", etc.
  */
 function normalizeDateString(dateVal) {
-  if (!dateVal) return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  if (!dateVal) return Utilities.formatDate(new Date(), 'Asia/Kolkata', 'yyyy-MM-dd');
   
-  // Check DD-MM-YYYY or DD/MM/YYYY
-  const parts = dateVal.split(/[-/ :]/);
-  if (parts.length >= 3) {
-    if (parts[0].length === 2 && parts[2].length === 4) {
-      // DD-MM-YYYY
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
+  const str = String(dateVal).trim();
+  const monthMap = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+  };
+
+  // Format 1: "25 - Nov - 2026" or "25-Nov-2026" or "25 Nov 2026"
+  const alphaMatch = str.match(/^(\d{1,2})\s*[-/\s]\s*([A-Za-z]{3,9})\s*[-/\s]\s*(\d{4})/);
+  if (alphaMatch) {
+    const day = alphaMatch[1].padStart(2, '0');
+    const monStr = alphaMatch[2].substring(0, 3).toLowerCase();
+    const mon = monthMap[monStr] || '01';
+    const yr = alphaMatch[3];
+    return `${yr}-${mon}-${day}`;
   }
 
-  const d = new Date(dateVal);
-  if (!isNaN(d.getTime())) {
-    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  // Format 2: "25-11-2026" or "25/11/2026" (DD-MM-YYYY)
+  const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const mon = dmyMatch[2].padStart(2, '0');
+    const yr = dmyMatch[3];
+    return `${yr}-${mon}-${day}`;
   }
-  return dateVal.split(' ')[0];
+
+  // Format 3: "2026-11-25" (YYYY-MM-DD)
+  const ymdMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (ymdMatch) {
+    const yr = ymdMatch[1];
+    const mon = ymdMatch[2].padStart(2, '0');
+    const day = ymdMatch[3].padStart(2, '0');
+    return `${yr}-${mon}-${day}`;
+  }
+
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    return Utilities.formatDate(d, 'Asia/Kolkata', 'yyyy-MM-dd');
+  }
+
+  return Utilities.formatDate(new Date(), 'Asia/Kolkata', 'yyyy-MM-dd');
 }
 
 /**
- * Synchronizes Clients_Master with in-memory map
+ * Synchronizes Clients_Master using fast in-memory batch updates
  */
 function syncClientsMasterTable(clientsSheet, clientsMap) {
-  const existingRows = clientsSheet.getDataRange().getValues();
+  const dataRange = clientsSheet.getDataRange();
+  const existingRows = dataRange.getValues();
   const rowsToAppend = [];
+  let hasUpdates = false;
 
   clientsMap.forEach((c, cid) => {
-    if (c.row) {
-      // Existing Client: Update Last_Txn_Date and Yearly_Sales
-      const rowIdx = c.row;
-      clientsSheet.getRange(rowIdx, 6).setValue(c.lastTxnDate); // Col 6: Last_Txn_Date
-      clientsSheet.getRange(rowIdx, 7).setValue(c.yearlySales); // Col 7: Yearly_Sales
-    } else {
-      // New Client: Queue for append
+    if (c.row && c.row <= existingRows.length) {
+      const rIdx = c.row - 1; // 0-based
+      if (c.clientName && existingRows[rIdx][1] !== c.clientName) {
+        existingRows[rIdx][1] = c.clientName;
+        hasUpdates = true;
+      }
+      if (c.mobile && existingRows[rIdx][2] !== c.mobile) {
+        existingRows[rIdx][2] = c.mobile;
+        hasUpdates = true;
+      }
+      if (existingRows[rIdx][5] !== c.lastTxnDate) {
+        existingRows[rIdx][5] = c.lastTxnDate;
+        hasUpdates = true;
+      }
+      if (existingRows[rIdx][6] !== c.yearlySales) {
+        existingRows[rIdx][6] = c.yearlySales;
+        hasUpdates = true;
+      }
+    } else if (!c.row) {
+      // New Client: Queue for batch append
       rowsToAppend.push([
         cid,
         c.clientName,
@@ -410,6 +524,10 @@ function syncClientsMasterTable(clientsSheet, clientsMap) {
       ]);
     }
   });
+
+  if (hasUpdates && existingRows.length > 1) {
+    dataRange.setValues(existingRows);
+  }
 
   if (rowsToAppend.length > 0) {
     clientsSheet.getRange(clientsSheet.getLastRow() + 1, 1, rowsToAppend.length, rowsToAppend[0].length)
@@ -431,7 +549,7 @@ function setupDailySyncTrigger() {
   ScriptApp.newTrigger('triggerDailyZapurseSync')
     .timeBased()
     .everyDays(1)
-    .atHour(2) // Runs every night at 2:00 AM
+    .atHour(2) // Runs every night at 2:00 AM IST
     .create();
 
   SpreadsheetApp.getUi().alert('Nightly Auto-Sync Trigger Created!\n\nZapurse MIS will automatically sync every day at 2:00 AM.');
@@ -441,8 +559,8 @@ function triggerDailyZapurseSync() {
   const now = new Date();
   const past7 = new Date();
   past7.setDate(now.getDate() - 7); // Sync last 7 days daily to capture revisions
-  const fromStr = Utilities.formatDate(past7, Session.getScriptTimeZone(), 'dd-MM-yyyy');
-  const toStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'dd-MM-yyyy');
+  const fromStr = Utilities.formatDate(past7, 'Asia/Kolkata', 'dd-MM-yyyy');
+  const toStr = Utilities.formatDate(now, 'Asia/Kolkata', 'dd-MM-yyyy');
 
   syncAllZapurseServices(fromStr, toStr);
 }
@@ -565,7 +683,15 @@ function doGet(e) {
 
       case 'syncExternalSalesAPI':
       case 'syncZapurse':
-        responseData = syncAllZapurseServices(params.fromDate, params.toDate, params.services ? params.services.split(',') : null);
+        if (params.clean === 'true') {
+          responseData = cleanAndResyncDatabase(params.fromDate, params.toDate, params.services ? params.services.split(',') : null);
+        } else {
+          responseData = syncAllZapurseServices(params.fromDate, params.toDate, params.services ? params.services.split(',') : null);
+        }
+        break;
+
+      case 'cleanResync':
+        responseData = cleanAndResyncDatabase(params.fromDate, params.toDate, params.services ? params.services.split(',') : null);
         break;
 
       default:
@@ -614,7 +740,15 @@ function doPost(e) {
 
       case 'syncExternalSalesAPI':
       case 'syncZapurse':
-        responseData = syncAllZapurseServices(payload.fromDate, payload.toDate, payload.services);
+        if (payload.clean === true || payload.clean === 'true') {
+          responseData = cleanAndResyncDatabase(payload.fromDate, payload.toDate, payload.services);
+        } else {
+          responseData = syncAllZapurseServices(payload.fromDate, payload.toDate, payload.services);
+        }
+        break;
+
+      case 'cleanResync':
+        responseData = cleanAndResyncDatabase(payload.fromDate, payload.toDate, payload.services);
         break;
 
       case 'initDb':
@@ -678,16 +812,19 @@ function loginHandler(username, password) {
 }
 
 /**
- * Ultra-Fast Date Formatting Helper (Pure JS - 10,000x faster than Utilities.formatDate)
+ * Ultra-Fast Date Formatting Helper (Pure JS IST conversion)
+ * Handles Date objects and date strings with 0 latency
  */
 function fastFormatDate(d) {
   if (!d) return '';
   if (typeof d === 'string') return d.length >= 10 ? d.substring(0, 10) : d;
   if (d instanceof Date) {
     if (isNaN(d.getTime())) return '';
-    const y = d.getFullYear();
-    const m = d.getMonth() + 1;
-    const day = d.getDate();
+    // IST is UTC + 5:30 (19,800,000 ms)
+    const istTime = new Date(d.getTime() + 19800000);
+    const y = istTime.getUTCFullYear();
+    const m = istTime.getUTCMonth() + 1;
+    const day = istTime.getUTCDate();
     return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
   }
   return String(d);
@@ -714,16 +851,19 @@ function getInitialDataHandler(params) {
     configMap[configData[i][0]] = configData[i][1];
   }
 
+  // Exact IST Dates
   const now = new Date();
-  const curYear = now.getFullYear();
-  const curMonth = now.getMonth();
-  const todayStr = fastFormatDate(now);
+  const todayStr = Utilities.formatDate(now, 'Asia/Kolkata', 'yyyy-MM-dd');
 
   let yesterday = new Date();
   yesterday.setDate(now.getDate() - 1);
-  const yestStr = fastFormatDate(yesterday);
+  const yestStr = Utilities.formatDate(yesterday, 'Asia/Kolkata', 'yyyy-MM-dd');
+
+  const curYear = parseInt(todayStr.substring(0, 4), 10);
+  const curMonth = parseInt(todayStr.substring(5, 7), 10) - 1;
 
   let yesterdaySales = { volume: 0, count: 0 };
+  let todaySales = { volume: 0, count: 0 };
   let monthlySales = { volume: 0, count: 0 };
   let yearlySales = { volume: 0, count: 0 };
 
@@ -731,7 +871,7 @@ function getInitialDataHandler(params) {
   let monthlyChartVolumes = new Array(12).fill(0);
   let monthlyChartTxns = new Array(12).fill(0);
 
-  // High-Speed Loop over Sales Data (Milliseconds, no slow Google JVM calls)
+  // High-Speed Loop over Sales Data
   for (let i = 1; i < salesData.length; i++) {
     const row = salesData[i];
     const dateRaw = row[1];
@@ -740,11 +880,11 @@ function getInitialDataHandler(params) {
     let dStr = '';
 
     if (dateRaw instanceof Date) {
-      year = dateRaw.getFullYear();
-      month = dateRaw.getMonth();
-      const m = month + 1;
-      const d = dateRaw.getDate();
-      dStr = year + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+      dStr = fastFormatDate(dateRaw);
+      if (dStr && dStr.length >= 10) {
+        year = parseInt(dStr.substring(0, 4), 10);
+        month = parseInt(dStr.substring(5, 7), 10) - 1;
+      }
     } else if (typeof dateRaw === 'string' && dateRaw.length >= 10) {
       dStr = dateRaw.substring(0, 10);
       year = parseInt(dStr.substring(0, 4), 10);
@@ -772,6 +912,11 @@ function getInitialDataHandler(params) {
     if (dStr === yestStr) {
       yesterdaySales.volume += vol;
       yesterdaySales.count += txnCount;
+    }
+
+    if (dStr === todayStr) {
+      todaySales.volume += vol;
+      todaySales.count += txnCount;
     }
   }
 
@@ -844,6 +989,7 @@ function getInitialDataHandler(params) {
   return {
     kpis: {
       yesterday: yesterdaySales,
+      today: todaySales,
       monthly: monthlySales,
       yearly: yearlySales,
       todayFollowups: todayFollowupsCount
@@ -960,7 +1106,7 @@ function getClientHistoryHandler(clientId) {
         mobile: clientsData[i][2],
         cityState: clientsData[i][3],
         assignedUser: clientsData[i][4],
-        lastTxnDate: clientsData[i][5] instanceof Date ? Utilities.formatDate(clientsData[i][5], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(clientsData[i][5]),
+        lastTxnDate: fastFormatDate(clientsData[i][5]),
         yearlySales: Number(clientsData[i][6]) || 0,
         followupsCount: Number(clientsData[i][7]) || 0,
         status: clientsData[i][8],
@@ -999,7 +1145,7 @@ function getClientHistoryHandler(clientId) {
       if (String(salesData[i][2]) === String(clientId)) {
         transactions.push({
           txnId: salesData[i][0],
-          date: salesData[i][1] instanceof Date ? Utilities.formatDate(salesData[i][1], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(salesData[i][1]),
+          date: fastFormatDate(salesData[i][1]),
           serviceName: salesData[i][5],
           txnCount: salesData[i][6],
           volume: salesData[i][7],
