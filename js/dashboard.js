@@ -12,11 +12,25 @@ const Dashboard = {
   filteredSalesData: [],
   currentPage: 1,
   pageSize: 10,
+  activeDateFilter: 'yesterday', // 'yesterday' (default) | 'today' | '7days' | 'custom' | 'all'
+  systemYesterdayDate: '',
+  systemTodayDate: '',
+  customFromDate: '',
+  customToDate: '',
 
   async load() {
     try {
       const data = await Api.get('getInitialData');
       
+      // Determine Yesterday & Today date strings
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      this.systemTodayDate = data.kpis?.today?.date || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+      const yDate = new Date(now);
+      yDate.setDate(now.getDate() - 1);
+      this.systemYesterdayDate = data.kpis?.yesterday?.date || `${yDate.getFullYear()}-${pad(yDate.getMonth() + 1)}-${pad(yDate.getDate())}`;
+
       // 1. Render Top 4 KPI Cards
       this.renderKPIs(data.kpis);
 
@@ -31,7 +45,23 @@ const Dashboard = {
       // 4. Render Master Sales Table (Skip Payment Gateway User)
       const rawSales = data.recentSales || [];
       this.allSalesData = rawSales.filter(item => !Config.isPaymentGatewayUser(item.clientName, item.mobile));
+
+      // Auto-fallback: If yesterday date has no rows in allSalesData, use latest recorded date
+      if (this.allSalesData.length > 0) {
+        const hasYesterday = this.allSalesData.some(d => (d.date || '').startsWith(this.systemYesterdayDate));
+        if (!hasYesterday) {
+          // Sort dates descending to find latest closed date
+          const dates = [...new Set(this.allSalesData.map(d => (d.date || '').substring(0, 10)).filter(Boolean))].sort().reverse();
+          if (dates.length > 0) {
+            this.systemYesterdayDate = dates[0];
+          }
+        }
+      }
+
       this.populateServiceDropdowns(data.services || []);
+      
+      // Apply default date filter (Yesterday)
+      this.setDateFilter('yesterday', false);
       this.filterSalesTable();
 
     } catch (err) {
@@ -71,8 +101,6 @@ const Dashboard = {
     const labels = chartData.map(d => d.month);
     const dataValues = chartData.map(d => this.activeChartMetric === 'volume' ? d.volume : d.txnCount);
 
-    // Color coding:
-    // Green (#10b981) for Highest, Red (#f43f5e) for Lowest, Blue (#0284c7) for others
     const backgroundColors = chartData.map(d => {
       if (d.isHighest) return '#10b981'; // Green
       if (d.isLowest) return '#f43f5e';  // Red
@@ -182,19 +210,19 @@ const Dashboard = {
     }
 
     container.innerHTML = clients.map(c => `
-      <div class="p-2.5 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between hover:border-rose-500/30 transition">
-        <div class="space-y-0.5">
-          <p class="text-xs font-bold text-white flex items-center gap-1.5">
-            <span>${c.clientName}</span>
-            <span class="text-[10px] font-medium text-rose-400 bg-rose-500/10 px-1.5 py-0.2 rounded border border-rose-500/20">
+      <div class="lowest-client-card p-2.5 rounded-xl flex items-center justify-between transition">
+        <div class="space-y-0.5 truncate mr-2">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="client-name text-xs font-bold truncate">${c.clientName}</span>
+            <span class="client-sales-badge text-[10px] font-bold px-1.5 py-0.5 rounded-md">
               ₹${Number(c.yearlySales).toLocaleString('en-IN')}
             </span>
-          </p>
-          <p class="text-[11px] text-slate-400">
-            ${c.cityState} • <span class="text-slate-300">${c.primaryService || 'General'}</span>
+          </div>
+          <p class="client-meta text-[11px]">
+            ${c.cityState || 'India'} • <span class="client-service font-semibold">${c.primaryService || 'General'}</span>
           </p>
         </div>
-        <button onclick="Calling.openCallModalById('${c.clientId}')" class="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg text-xs font-semibold transition" title="Direct Retention Call">
+        <button onclick="Calling.openCallModalById('${c.clientId}')" class="call-action-btn p-2 rounded-lg text-xs font-semibold shrink-0 transition" title="Direct Retention Call">
           <i data-lucide="phone" class="w-3.5 h-3.5"></i>
         </button>
       </div>
@@ -216,20 +244,115 @@ const Dashboard = {
     }
   },
 
+  setDateFilter(type, shouldFilter = true) {
+    this.activeDateFilter = type;
+
+    // Update pill buttons
+    const pills = ['yesterday', 'today', '7days', 'all'];
+    pills.forEach(p => {
+      const btn = document.getElementById(`dash-pill-${p}`);
+      if (btn) {
+        if (p === type) {
+          btn.className = 'dash-pill-btn active px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-600 text-white shadow-sm transition';
+        } else {
+          btn.className = 'dash-pill-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 transition';
+        }
+      }
+    });
+
+    if (shouldFilter) {
+      this.filterSalesTable();
+    }
+  },
+
+  applyCustomDateFilter() {
+    const from = document.getElementById('dash-date-from')?.value;
+    const to = document.getElementById('dash-date-to')?.value;
+
+    if (!from && !to) {
+      Swal.fire('Select Date', 'Please pick a From Date or To Date', 'info');
+      return;
+    }
+
+    this.customFromDate = from || '';
+    this.customToDate = to || '';
+    this.activeDateFilter = 'custom';
+
+    // Unhighlight all quick pills
+    ['yesterday', 'today', '7days', 'all'].forEach(p => {
+      const btn = document.getElementById(`dash-pill-${p}`);
+      if (btn) {
+        btn.className = 'dash-pill-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 transition';
+      }
+    });
+
+    this.filterSalesTable();
+  },
+
+  resetDateFilter() {
+    const fromInput = document.getElementById('dash-date-from');
+    const toInput = document.getElementById('dash-date-to');
+    if (fromInput) fromInput.value = '';
+    if (toInput) toInput.value = '';
+    this.customFromDate = '';
+    this.customToDate = '';
+    this.setDateFilter('yesterday', true);
+  },
+
   filterSalesTable() {
-    const serviceFilter = document.getElementById('sales-filter-service').value;
-    const query = (document.getElementById('sales-search-input').value || '').toLowerCase();
+    const serviceFilter = document.getElementById('sales-filter-service')?.value || 'ALL';
+    const query = (document.getElementById('sales-search-input')?.value || '').toLowerCase().trim();
+
+    // Calculate 7 days ago string
+    const now = new Date();
+    const d7 = new Date(now);
+    d7.setDate(now.getDate() - 7);
+    const pad = (n) => String(n).padStart(2, '0');
+    const d7Str = `${d7.getFullYear()}-${pad(d7.getMonth() + 1)}-${pad(d7.getDate())}`;
 
     this.filteredSalesData = this.allSalesData.filter(item => {
+      const itemDate = (item.date || '').substring(0, 10);
+
+      // 1. Date Filter
+      if (this.activeDateFilter === 'yesterday') {
+        if (this.systemYesterdayDate && itemDate !== this.systemYesterdayDate) return false;
+      } else if (this.activeDateFilter === 'today') {
+        if (this.systemTodayDate && itemDate !== this.systemTodayDate) return false;
+      } else if (this.activeDateFilter === '7days') {
+        if (itemDate < d7Str) return false;
+      } else if (this.activeDateFilter === 'custom') {
+        if (this.customFromDate && itemDate < this.customFromDate) return false;
+        if (this.customToDate && itemDate > this.customToDate) return false;
+      }
+
+      // 2. Service Filter
       if (serviceFilter !== 'ALL' && item.serviceName !== serviceFilter) {
         return false;
       }
+
+      // 3. Search query
       if (query) {
-        const str = `${item.txnId} ${item.clientName} ${item.mobile} ${item.serviceName}`.toLowerCase();
+        const str = `${item.txnId || ''} ${item.clientId || ''} ${item.clientName || ''} ${item.mobile || ''} ${item.parentName || ''} ${item.parentMobile || ''} ${item.serviceName || ''}`.toLowerCase();
         if (!str.includes(query)) return false;
       }
+
       return true;
     });
+
+    // Update summary badge on header
+    const summaryBadge = document.getElementById('sales-date-badge');
+    if (summaryBadge) {
+      let label = 'Yesterday';
+      if (this.activeDateFilter === 'yesterday') label = `Yesterday (${this.systemYesterdayDate || 'Closed Day'})`;
+      else if (this.activeDateFilter === 'today') label = `Today (${this.systemTodayDate})`;
+      else if (this.activeDateFilter === '7days') label = 'Last 7 Days';
+      else if (this.activeDateFilter === 'custom') label = `Custom: ${this.customFromDate || 'Start'} to ${this.customToDate || 'End'}`;
+      else if (this.activeDateFilter === 'all') label = 'All Recorded Dates';
+
+      let totalAmt = 0;
+      this.filteredSalesData.forEach(d => { totalAmt += Number(d.volume) || 0; });
+      summaryBadge.innerHTML = `<span>${label}</span> <span class="font-normal opacity-80">• ${this.filteredSalesData.length} records • ₹${totalAmt.toLocaleString('en-IN')}</span>`;
+    }
 
     this.currentPage = 1;
     this.renderSalesTablePage();
@@ -241,7 +364,7 @@ const Dashboard = {
 
     const total = this.filteredSalesData.length;
     if (total === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-500">No transactions match your current filters.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-500 font-medium">No transactions found for the selected date filter.</td></tr>`;
       document.getElementById('sales-pagination-info').textContent = 'Showing 0 of 0';
       document.getElementById('sales-prev-btn').disabled = true;
       document.getElementById('sales-next-btn').disabled = true;
@@ -254,19 +377,19 @@ const Dashboard = {
 
     tbody.innerHTML = pageItems.map(item => `
       <tr class="hover:bg-slate-800/40 transition">
-        <td class="py-3 px-3.5 text-slate-300 font-mono whitespace-nowrap">${item.date}</td>
-        <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${item.clientId}</td>
-        <td class="py-3 px-3.5 font-bold text-white">${item.clientName}</td>
-        <td class="py-3 px-3.5 text-slate-300 font-mono">${item.mobile || '-'}</td>
-        <td class="py-3 px-3.5 text-slate-300">${item.parentName || '-'}</td>
-        <td class="py-3 px-3.5 text-slate-400 font-mono">${item.parentMobile || '-'}</td>
+        <td class="py-3 px-3.5 text-slate-300 font-mono whitespace-nowrap text-xs">${item.date}</td>
+        <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold text-xs whitespace-nowrap">${item.clientId || '-'}</td>
+        <td class="py-3 px-3.5 font-bold text-white text-xs">${item.clientName || '-'}</td>
+        <td class="py-3 px-3.5 text-slate-300 font-mono text-xs whitespace-nowrap">${item.mobile || '-'}</td>
+        <td class="py-3 px-3.5 text-slate-300 text-xs">${item.parentName || '-'}</td>
+        <td class="py-3 px-3.5 text-slate-400 font-mono text-xs whitespace-nowrap">${item.parentMobile || '-'}</td>
         <td class="py-3 px-3.5">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-brand-400 border border-slate-700">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-brand-400 border border-slate-700 whitespace-nowrap">
             ${item.serviceName}
           </span>
         </td>
-        <td class="py-3 px-3.5 text-right font-mono">${Number(item.txnCount).toLocaleString('en-IN')}</td>
-        <td class="py-3 px-3.5 text-right font-mono font-bold text-white">₹${Number(item.volume).toLocaleString('en-IN')}</td>
+        <td class="py-3 px-3.5 text-right font-mono font-semibold text-xs">${Number(item.txnCount || 1).toLocaleString('en-IN')}</td>
+        <td class="py-3 px-3.5 text-right font-mono font-bold text-white text-xs whitespace-nowrap">₹${Number(item.volume).toLocaleString('en-IN')}</td>
         <td class="py-3 px-3.5 text-center">
           <button onclick="Calling.openCallModalById('${item.clientId}')" class="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 rounded-lg text-xs font-semibold transition flex items-center gap-1 mx-auto" title="Call Merchant">
             <i data-lucide="phone" class="w-3 h-3"></i>
@@ -326,7 +449,7 @@ const Dashboard = {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Zapurse_Sales_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `Zapurse_Sales_${this.activeDateFilter}_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -639,7 +639,7 @@ function doGet(e) {
         break;
 
       case 'getServiceData':
-        responseData = getServiceDataHandler(params.service);
+        responseData = getServiceDataHandler(params.service, params.fromDate, params.toDate);
         break;
 
       case 'getReports':
@@ -688,7 +688,7 @@ function doPost(e) {
         break;
 
       case 'getServiceData':
-        responseData = getServiceDataHandler(payload.service);
+        responseData = getServiceDataHandler(payload.service, payload.fromDate, payload.toDate);
         break;
 
       case 'saveCallLog':
@@ -958,12 +958,15 @@ function getInitialDataHandler(params) {
     });
   }
 
+  yesterdaySales.date = yestStr;
+  todaySales.date = todayStr;
+
   const lowestPerforming = clientList
     .filter(c => c.status !== 'Locked')
     .sort((a, b) => a.yearlySales - b.yearlySales)
     .slice(0, 5);
 
-  const recentSales = allSales.slice(-100).reverse();
+  const recentSales = allSales.slice(-2000).reverse();
 
   let services = CONFIG.SERVICE_TYPES;
   if (configMap['Services_List']) {
@@ -999,12 +1002,15 @@ function getInitialDataHandler(params) {
 /**
  * Service Data Handler: aggregates all volume, count, top/bottom merchants, and latest transactions for a specific service
  */
-function getServiceDataHandler(serviceName) {
+function getServiceDataHandler(serviceName, fromDate, toDate) {
   if (!serviceName) return { error: 'serviceName required' };
   const targetService = String(serviceName).trim().toUpperCase();
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const allSales = getMasterSalesData(ss);
+
+  const fromNorm = fromDate ? normalizeDateString(fromDate) : '';
+  const toNorm = toDate ? normalizeDateString(toDate) : '';
 
   let totalVolume = 0;
   let totalTxnCount = 0;
@@ -1017,6 +1023,9 @@ function getServiceDataHandler(serviceName) {
     if (rowSvc !== targetService && targetService !== 'ALL') {
       continue;
     }
+
+    if (fromNorm && s.date < fromNorm) continue;
+    if (toNorm && s.date > toNorm) continue;
 
     totalVolume += s.volume;
     totalTxnCount += s.txnCount;
@@ -1049,10 +1058,12 @@ function getServiceDataHandler(serviceName) {
   const topMerchants = [...merchantList].sort((a, b) => b.volume - a.volume).slice(0, 5);
   const bottomMerchants = [...merchantList].sort((a, b) => a.volume - b.volume).slice(0, 5);
 
-  const latestTxns = transactions.slice(-250).reverse();
+  const latestTxns = transactions.slice(-500).reverse();
 
   return {
     serviceName: serviceName,
+    fromDate: fromNorm,
+    toDate: toNorm,
     totalVolume: totalVolume,
     totalTxnCount: totalTxnCount,
     topMerchants: topMerchants,
