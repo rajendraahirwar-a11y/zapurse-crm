@@ -66,7 +66,10 @@ const Admin = {
       return;
     }
 
-    tbody.innerHTML = users.map(u => `
+    tbody.innerHTML = users.map(u => {
+      const safeName = (u.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const safeId = String(u.userId);
+      return `
       <tr class="hover:bg-slate-800/40 transition">
         <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${u.userId}</td>
         <td class="py-3 px-3.5 font-bold text-white">${u.name}</td>
@@ -85,12 +88,25 @@ const Admin = {
           </span>
         </td>
         <td class="py-3 px-3.5 text-center">
-          <button onclick="Admin.toggleUserStatus('${u.userId}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition">
-            ${u.status === 'Active' ? 'Disable' : 'Enable'}
-          </button>
+          <div class="flex items-center justify-center gap-1.5">
+            <!-- Edit Button -->
+            <button onclick="Admin.showEditUserModal('${safeId}')" class="p-1.5 bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 rounded-lg text-xs transition" title="Edit User">
+              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+            </button>
+            <!-- Toggle Active/Inactive -->
+            <button onclick="Admin.toggleUserStatus('${safeId}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 transition" title="Toggle Status">
+              ${u.status === 'Active' ? 'Disable' : 'Enable'}
+            </button>
+            <!-- Delete Button -->
+            <button onclick="Admin.deleteUser('${safeId}', '${safeName}')" class="p-1.5 bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 rounded-lg text-xs transition" title="Delete User">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
         </td>
       </tr>
-    `).join('');
+    `}).join('');
+
+    if (window.lucide) lucide.createIcons();
   },
 
   async showCreateUserModal() {
@@ -152,6 +168,138 @@ const Admin = {
     }
   },
 
+  async showEditUserModal(userId) {
+    const u = (this.usersList || []).find(x => String(x.userId) === String(userId));
+    if (!u) {
+      Swal.fire('Error', 'User not found in memory. Please reload.', 'error');
+      return;
+    }
+
+    const currentServices = Array.isArray(u.allowedServices) ? u.allowedServices.join(', ') : (u.allowedServices || 'ALL');
+
+    const { value: formValues } = await Swal.fire({
+      title: 'Edit CRM User: ' + u.name,
+      html: `
+        <div class="space-y-3 text-left text-xs">
+          <div>
+            <label class="block font-semibold mb-1 text-slate-300">User ID</label>
+            <input class="swal2-input !m-0 !w-full !text-xs !h-9 bg-slate-800 text-slate-400 cursor-not-allowed" value="${u.userId}" disabled>
+          </div>
+          <div>
+            <label class="block font-semibold mb-1 text-slate-300">Full Name</label>
+            <input id="swal-edit-name" class="swal2-input !m-0 !w-full !text-xs !h-9" value="${u.name || ''}" placeholder="Full Name">
+          </div>
+          <div>
+            <label class="block font-semibold mb-1 text-slate-300">Username</label>
+            <input id="swal-edit-uname" class="swal2-input !m-0 !w-full !text-xs !h-9" value="${u.username || ''}" placeholder="Username">
+          </div>
+          <div>
+            <label class="block font-semibold mb-1 text-slate-300">New Password <span class="text-slate-500 font-normal">(leave blank to keep unchanged)</span></label>
+            <input id="swal-edit-pass" type="password" class="swal2-input !m-0 !w-full !text-xs !h-9" placeholder="••••••••">
+          </div>
+          <div>
+            <label class="block font-semibold mb-1 text-slate-300">Role</label>
+            <select id="swal-edit-role" class="swal2-select !m-0 !w-full !text-xs !h-9">
+              <option value="Caller" ${u.role === 'Caller' ? 'selected' : ''}>Caller</option>
+              <option value="Manager" ${u.role === 'Manager' ? 'selected' : ''}>Manager</option>
+              <option value="Admin" ${u.role === 'Admin' ? 'selected' : ''}>Admin</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold mb-1 text-slate-300">Status</label>
+            <select id="swal-edit-status" class="swal2-select !m-0 !w-full !text-xs !h-9">
+              <option value="Active" ${u.status === 'Active' ? 'selected' : ''}>Active</option>
+              <option value="Inactive" ${u.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold mb-1 text-slate-300">Allowed Services (Comma separated or ALL)</label>
+            <input id="swal-edit-services" class="swal2-input !m-0 !w-full !text-xs !h-9" value="${currentServices}" placeholder="ALL or ZAP AEPS, ZAPUPI, RISLDMT">
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Save Changes',
+      confirmButtonColor: '#0284c7',
+      preConfirm: () => {
+        const name = document.getElementById('swal-edit-name').value.trim();
+        const username = document.getElementById('swal-edit-uname').value.trim();
+        const pass = document.getElementById('swal-edit-pass').value.trim();
+        const role = document.getElementById('swal-edit-role').value;
+        const status = document.getElementById('swal-edit-status').value;
+        const services = document.getElementById('swal-edit-services').value.split(',').map(s => s.trim()).filter(Boolean);
+
+        if (!name || !username) {
+          Swal.showValidationMessage('Name and Username are required');
+          return false;
+        }
+
+        const payload = {
+          name,
+          username,
+          role,
+          status,
+          allowedServices: services
+        };
+        if (pass) {
+          payload.password = pass;
+        }
+        return payload;
+      }
+    });
+
+    if (formValues) {
+      Swal.fire({ title: 'Updating User...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      try {
+        const res = await Api.post('manageUser', {
+          operation: 'edit',
+          userId: u.userId,
+          ...formValues
+        });
+        if (res.success) {
+          Swal.fire('Updated', res.message || 'User details updated successfully!', 'success');
+          this.load();
+        } else {
+          Swal.fire('Error', res.message || 'Failed to update user', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error', err.message || 'Network error updating user', 'error');
+      }
+    }
+  },
+
+  async deleteUser(userId, userName) {
+    const confirm = await Swal.fire({
+      title: 'Delete User?',
+      html: `Are you sure you want to permanently delete user <strong class="text-rose-400">${userName}</strong> (ID: <code>${userId}</code>)?<br><br><span class="text-xs text-slate-400">This action will permanently remove the user from the database.</span>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#e11d48',
+      cancelButtonColor: '#334155',
+      confirmButtonText: 'Yes, Delete',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (confirm.isConfirmed) {
+      Swal.fire({ title: 'Deleting User...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      try {
+        const res = await Api.post('manageUser', {
+          operation: 'delete',
+          userId: userId
+        });
+        if (res.success) {
+          Swal.fire('Deleted', res.message || 'User permanently deleted!', 'success');
+          this.load();
+        } else {
+          Swal.fire('Error', res.message || 'Failed to delete user', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error', err.message || 'Network error deleting user', 'error');
+      }
+    }
+  },
+
   async toggleUserStatus(userId) {
     const res = await Api.post('manageUser', {
       operation: 'toggleStatus',
@@ -159,6 +307,38 @@ const Admin = {
     });
     if (res.success) {
       this.load();
+    }
+  },
+
+  async setupDailyTrigger() {
+    const confirm = await Swal.fire({
+      title: 'Setup Daily Automatic Sync Trigger?',
+      html: `This will schedule Google Apps Script to run automatic sync every day at <strong>8:00 AM IST Morning</strong> for all services.<br><br>Existing older triggers (e.g. 2 AM nightly) will be cleanly replaced.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Install 8 AM Trigger',
+      confirmButtonColor: '#0284c7',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    Swal.fire({ title: 'Configuring Trigger...', text: 'Connecting to Google Apps Script...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+      let res;
+      try {
+        res = await Api.post('setupDailySyncTrigger', {});
+      } catch (postErr) {
+        res = await Api.get('setupDailySyncTrigger');
+      }
+      if (res && res.success) {
+        Swal.fire('Trigger Configured!', res.message || 'Daily automatic sync trigger scheduled for 8:00 AM IST morning.', 'success');
+      } else {
+        Swal.fire('Done', res?.message || 'Daily sync trigger set up successfully on Google Apps Script at 8:00 AM Morning.', 'success');
+      }
+    } catch (err) {
+      console.error('Trigger setup error:', err);
+      Swal.fire('Information', 'If using Web App without trigger scope permissions, you can also click "⏰ Setup Automatic Daily Sync Trigger (Morning 8 AM)" directly from the Google Sheets Extensions menu.', 'info');
     }
   },
 

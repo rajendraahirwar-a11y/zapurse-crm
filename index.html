@@ -464,7 +464,7 @@
           <!-- BOTTOM ROW: MASTER SALES TABLE -->
           <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
             
-            <!-- Table Header & Date Status Badge -->
+            <!-- Table Header & Controls (Services, Search, Export) -->
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>
                 <div class="flex items-center gap-2.5 flex-wrap">
@@ -476,71 +476,29 @@
                     Yesterday (Default)
                   </span>
                 </div>
-                <p class="text-xs text-slate-400 mt-0.5">Core transactions synced live from database. Defaults to yesterday's closed business day.</p>
+                <p class="text-xs text-slate-400 mt-0.5">Core transactions synced live from database. Showing yesterday's closed business day.</p>
               </div>
 
-              <!-- Export Button -->
-              <div class="flex items-center gap-2">
-                <button onclick="Dashboard.exportSalesCSV()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs text-slate-300 font-medium transition flex items-center gap-1.5 shadow-sm">
-                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                  <span>Export CSV</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Table Filter Toolbar (Date Range, Quick Pills, Services, Search) -->
-            <div class="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl flex flex-wrap items-center justify-between gap-3">
-              <!-- Quick Date Range Pills -->
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Period:</span>
-                <div class="inline-flex p-0.5 bg-slate-900 rounded-lg border border-slate-800">
-                  <button type="button" id="dash-pill-yesterday" onclick="Dashboard.setDateFilter('yesterday')" class="dash-pill-btn active px-3 py-1 rounded-md text-xs font-bold bg-brand-600 text-white shadow-sm transition">
-                    Yesterday
-                  </button>
-                  <button type="button" id="dash-pill-today" onclick="Dashboard.setDateFilter('today')" class="dash-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
-                    Today
-                  </button>
-                  <button type="button" id="dash-pill-7days" onclick="Dashboard.setDateFilter('7days')" class="dash-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
-                    7 Days
-                  </button>
-                  <button type="button" id="dash-pill-all" onclick="Dashboard.setDateFilter('all')" class="dash-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
-                    All
-                  </button>
-                </div>
-              </div>
-
-              <!-- Custom Date Pickers & Actions -->
-              <div class="flex flex-wrap items-center gap-2 text-xs">
-                <div class="flex items-center gap-1">
-                  <span class="text-slate-400 text-[11px]">From:</span>
-                  <input type="date" id="dash-date-from" class="px-2.5 py-1 bg-slate-900 border border-slate-700/80 rounded-lg text-slate-200 text-xs focus:ring-1 focus:ring-brand-500">
-                </div>
-                <div class="flex items-center gap-1">
-                  <span class="text-slate-400 text-[11px]">To:</span>
-                  <input type="date" id="dash-date-to" class="px-2.5 py-1 bg-slate-900 border border-slate-700/80 rounded-lg text-slate-200 text-xs focus:ring-1 focus:ring-brand-500">
-                </div>
-                <button type="button" onclick="Dashboard.applyCustomDateFilter()" class="px-2.5 py-1 bg-brand-600 hover:bg-brand-500 text-white rounded-lg font-semibold transition">
-                  Apply
-                </button>
-                <button type="button" onclick="Dashboard.resetDateFilter()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition" title="Reset to Yesterday">
-                  Reset
-                </button>
-              </div>
-
-              <!-- Service & Search Filters -->
-              <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-800/80">
+              <!-- Service Filter, Search & Export Actions -->
+              <div class="flex flex-wrap items-center gap-2">
                 <!-- Service Dropdown -->
-                <select id="sales-filter-service" onchange="Dashboard.filterSalesTable()" class="px-2.5 py-1 bg-slate-900 border border-slate-700/80 rounded-lg text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                <select id="sales-filter-service" onchange="Dashboard.filterSalesTable()" class="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500">
                   <option value="ALL">All Services</option>
                   <!-- Populated from config -->
                 </select>
 
                 <!-- Search Input -->
-                <div class="relative flex-1 sm:w-48">
+                <div class="relative w-44 sm:w-56">
                   <input type="text" id="sales-search-input" onkeyup="Dashboard.filterSalesTable()" placeholder="Search merchant / txn..."
-                    class="w-full pl-7 pr-2.5 py-1 bg-slate-900 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
-                  <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2 top-1.5 pointer-events-none"></i>
+                    class="w-full pl-8 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
+                  <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2 pointer-events-none"></i>
                 </div>
+
+                <!-- Export Button -->
+                <button onclick="Dashboard.exportSalesCSV()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs text-slate-300 font-medium transition flex items-center gap-1.5 shadow-sm">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                  <span>Export CSV</span>
+                </button>
               </div>
             </div>
 
@@ -624,65 +582,6 @@
             </div>
           </div>
 
-          <!-- Date Range Filter & Search Toolbar for Services -->
-          <div class="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-xs font-bold text-white flex items-center gap-1.5">
-                <i data-lucide="calendar" class="w-4 h-4 text-brand-400"></i>
-                <span>Filter by Date:</span>
-              </span>
-              <!-- Quick Range Pills -->
-              <div class="inline-flex p-0.5 bg-slate-950/80 rounded-lg border border-slate-800 text-xs">
-                <button type="button" onclick="Services.applyQuickFilter('all')" id="srv-pill-all" class="srv-pill-btn active px-3 py-1 rounded-md text-xs font-bold bg-brand-600 text-white shadow-sm transition">
-                  All
-                </button>
-                <button type="button" onclick="Services.applyQuickFilter('yesterday')" id="srv-pill-yesterday" class="srv-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
-                  Yesterday
-                </button>
-                <button type="button" onclick="Services.applyQuickFilter('today')" id="srv-pill-today" class="srv-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
-                  Today
-                </button>
-                <button type="button" onclick="Services.applyQuickFilter('7days')" id="srv-pill-7days" class="srv-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
-                  7 Days
-                </button>
-              </div>
-              <span id="service-filter-status-tag" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20">
-                All Transactions
-              </span>
-            </div>
-
-            <!-- Custom From / To Dates & Search -->
-            <div class="flex flex-wrap items-center gap-2 text-xs">
-              <div class="flex items-center gap-1">
-                <span class="text-slate-400 text-[11px]">From:</span>
-                <input type="date" id="service-from-date" class="px-2.5 py-1 bg-slate-950 border border-slate-700/80 rounded-lg text-slate-200 text-xs focus:ring-1 focus:ring-brand-500">
-              </div>
-              <div class="flex items-center gap-1">
-                <span class="text-slate-400 text-[11px]">To:</span>
-                <input type="date" id="service-to-date" class="px-2.5 py-1 bg-slate-950 border border-slate-700/80 rounded-lg text-slate-200 text-xs focus:ring-1 focus:ring-brand-500">
-              </div>
-              <button type="button" onclick="Services.applyCustomDateFilter()" class="px-3 py-1 bg-brand-600 hover:bg-brand-500 text-white rounded-lg font-semibold transition">
-                Apply
-              </button>
-              <button type="button" onclick="Services.resetFilter()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition" title="Reset Filter">
-                Reset
-              </button>
-
-              <!-- Search -->
-              <div class="relative ml-1">
-                <input type="text" id="service-search-input" onkeyup="Services.filterTable()" placeholder="Search merchant / kiosk / mobile..."
-                  class="pl-7 pr-2.5 py-1 bg-slate-950 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500 w-44 sm:w-56">
-                <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2 top-1.5 pointer-events-none"></i>
-              </div>
-
-              <!-- Export CSV -->
-              <button type="button" onclick="Services.exportCSV()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 font-medium transition flex items-center gap-1" title="Export Filtered CSV">
-                <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                <span class="hidden sm:inline">Export</span>
-              </button>
-            </div>
-          </div>
-
           <!-- Top & Bottom Performers for this Service -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Top Merchants -->
@@ -710,10 +609,72 @@
 
           <!-- Service Specific Transactions Table -->
           <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
-              <i data-lucide="list" class="w-4 h-4 text-brand-400"></i>
-              <span>Service Transactions Record</span>
-            </h3>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i data-lucide="list" class="w-4 h-4 text-brand-400"></i>
+                <span>Service Transactions Record</span>
+              </h3>
+              <span id="service-filter-status-tag" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20">
+                All Transactions
+              </span>
+            </div>
+
+            <!-- Date Range Filter & Search Toolbar for Services -->
+            <div class="table-filter-toolbar p-3 bg-slate-950/70 border border-slate-800 rounded-xl flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                  <i data-lucide="calendar" class="w-4 h-4 text-brand-400"></i>
+                  <span>Filter by Date:</span>
+                </span>
+                <!-- Quick Range Pills -->
+                <div class="inline-flex p-0.5 bg-slate-900 rounded-lg border border-slate-800 text-xs">
+                  <button type="button" onclick="Services.applyQuickFilter('all')" id="srv-pill-all" class="srv-pill-btn active px-3 py-1 rounded-md text-xs font-bold bg-brand-600 text-white shadow-sm transition">
+                    All
+                  </button>
+                  <button type="button" onclick="Services.applyQuickFilter('yesterday')" id="srv-pill-yesterday" class="srv-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
+                    Yesterday
+                  </button>
+                  <button type="button" onclick="Services.applyQuickFilter('today')" id="srv-pill-today" class="srv-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
+                    Today
+                  </button>
+                  <button type="button" onclick="Services.applyQuickFilter('7days')" id="srv-pill-7days" class="srv-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
+                    7 Days
+                  </button>
+                </div>
+              </div>
+
+              <!-- Custom From / To Dates & Search -->
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <div class="flex items-center gap-1">
+                  <span class="text-slate-400 text-[11px]">From:</span>
+                  <input type="date" id="service-from-date" class="px-2.5 py-1 bg-slate-900 border border-slate-700/80 rounded-lg text-slate-200 text-xs focus:ring-1 focus:ring-brand-500">
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="text-slate-400 text-[11px]">To:</span>
+                  <input type="date" id="service-to-date" class="px-2.5 py-1 bg-slate-900 border border-slate-700/80 rounded-lg text-slate-200 text-xs focus:ring-1 focus:ring-brand-500">
+                </div>
+                <button type="button" onclick="Services.applyCustomDateFilter()" class="px-3 py-1 bg-brand-600 hover:bg-brand-500 text-white rounded-lg font-semibold transition">
+                  Apply
+                </button>
+                <button type="button" onclick="Services.resetFilter()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition" title="Reset Filter">
+                  Reset
+                </button>
+
+                <!-- Search -->
+                <div class="relative ml-1">
+                  <input type="text" id="service-search-input" onkeyup="Services.filterTable()" placeholder="Search merchant / kiosk / mobile..."
+                    class="pl-7 pr-2.5 py-1 bg-slate-900 border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-brand-500 w-44 sm:w-56">
+                  <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2 top-1.5 pointer-events-none"></i>
+                </div>
+
+                <!-- Export CSV -->
+                <button type="button" onclick="Services.exportCSV()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 font-medium transition flex items-center gap-1" title="Export Filtered CSV">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                  <span class="hidden sm:inline">Export</span>
+                </button>
+              </div>
+            </div>
+
             <div class="overflow-x-auto border border-slate-800 rounded-xl">
               <table class="w-full text-left text-xs text-slate-300">
                 <thead class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
@@ -1043,6 +1004,21 @@
                 <textarea id="setting-services-list" rows="3" class="w-full px-3.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-mono"></textarea>
               </div>
 
+              <!-- Morning 8 AM Trigger Card in Settings -->
+              <div class="p-4 bg-slate-950/70 border border-slate-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="space-y-0.5">
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="clock" class="w-4 h-4 text-brand-400"></i>
+                    <span class="text-xs font-bold text-white">Setup Automatic Daily Sync Trigger (Morning 8:00 AM IST)</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">Automatically syncs transactions every morning at 8:00 AM in Google Apps Script.</p>
+                </div>
+                <button onclick="Admin.setupDailyTrigger()" class="py-2 px-3.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shrink-0 shadow transition">
+                  <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                  <span>Setup Morning 8 AM Trigger</span>
+                </button>
+              </div>
+
               <button onclick="Admin.saveSystemSettings()" class="py-2.5 px-5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-md transition">
                 Save System Rules
               </button>
@@ -1070,6 +1046,21 @@
                 </button>
                 <button onclick="App.useDemoMode()" class="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl text-xs font-medium border border-slate-700 transition">
                   Switch to Standalone Demo Mode
+                </button>
+              </div>
+
+              <!-- Automatic Daily Sync Trigger (Morning 8 AM) -->
+              <div class="p-4 bg-slate-950/70 border border-slate-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-3">
+                <div class="space-y-0.5">
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="clock" class="w-4 h-4 text-brand-400"></i>
+                    <span class="text-xs font-bold text-white">Automatic Daily Sync Trigger (Morning 8:00 AM IST)</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">Schedules a daily background trigger in Google Apps Script to auto-sync transactions every morning at 8:00 AM.</p>
+                </div>
+                <button onclick="Admin.setupDailyTrigger()" class="py-2 px-3.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shrink-0 shadow transition">
+                  <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                  <span>Setup / Activate 8 AM Trigger</span>
                 </button>
               </div>
             </div>
@@ -1328,17 +1319,17 @@
 
 
   <!-- =========================================================================
-       5. APPLICATION JAVASCRIPT MODULES (v11 Ultra-Clean Badges, Modal & Data Mapping)
+       5. APPLICATION JAVASCRIPT MODULES (v12 User Management CRUD, Morning 8 AM Trigger & Polished Tables)
        ========================================================================= -->
-  <script src="js/config.js?v=11"></script>
-  <script src="js/api.js?v=11"></script>
-  <script src="js/auth.js?v=11"></script>
-  <script src="js/dashboard.js?v=11"></script>
-  <script src="js/services.js?v=11"></script>
-  <script src="js/calling.js?v=11"></script>
-  <script src="js/reports.js?v=11"></script>
-  <script src="js/admin.js?v=11"></script>
-  <script src="js/app.js?v=11"></script>
+  <script src="js/config.js?v=12"></script>
+  <script src="js/api.js?v=12"></script>
+  <script src="js/auth.js?v=12"></script>
+  <script src="js/dashboard.js?v=12"></script>
+  <script src="js/services.js?v=12"></script>
+  <script src="js/calling.js?v=12"></script>
+  <script src="js/reports.js?v=12"></script>
+  <script src="js/admin.js?v=12"></script>
+  <script src="js/app.js?v=12"></script>
 
   <!-- PWA Service Worker Registration (Runs over HTTP/HTTPS) -->
   <script>

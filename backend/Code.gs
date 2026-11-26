@@ -566,7 +566,7 @@ function onOpen() {
     .addItem("📅 Sync Custom Date Range", "menuSyncFullRange")
     .addSeparator()
     .addItem("🛠️ Initialize / Reset Database Tabs", "setupDatabase")
-    .addItem("⏰ Setup Automatic Daily Sync Trigger (Nightly 2 AM)", "setupDailySyncTrigger")
+    .addItem("⏰ Setup Automatic Daily Sync Trigger (Morning 8 AM)", "setupDailySyncTrigger")
     .addToUi();
 }
 
@@ -646,6 +646,10 @@ function doGet(e) {
         responseData = getReportsHandler(params);
         break;
 
+      case 'setupDailySyncTrigger':
+        responseData = setupDailySyncTrigger();
+        break;
+
       case 'syncExternalSalesAPI':
       case 'syncZapurse':
         responseData = updateAllServicesInMasterSheet(params.fromDate, params.toDate);
@@ -714,6 +718,10 @@ function doPost(e) {
 
       case 'initDb':
         responseData = setupDatabase();
+        break;
+
+      case 'setupDailySyncTrigger':
+        responseData = setupDailySyncTrigger();
         break;
 
       default:
@@ -1461,6 +1469,38 @@ function manageUserHandler(payload) {
     }
     return { success: false, message: 'User ID not found' };
   }
+
+  if (op === 'edit' || op === 'update') {
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(payload.userId)) {
+        if (payload.name) sheet.getRange(i + 1, 2).setValue(payload.name);
+        if (payload.username) sheet.getRange(i + 1, 3).setValue(payload.username);
+        if (payload.password) sheet.getRange(i + 1, 4).setValue(payload.password);
+        if (payload.role) sheet.getRange(i + 1, 5).setValue(payload.role);
+        if (payload.allowedServices) {
+          const srv = Array.isArray(payload.allowedServices) ? payload.allowedServices.join(',') : payload.allowedServices;
+          sheet.getRange(i + 1, 6).setValue(srv);
+        }
+        if (payload.allowedModules) {
+          const mod = Array.isArray(payload.allowedModules) ? payload.allowedModules.join(',') : payload.allowedModules;
+          sheet.getRange(i + 1, 7).setValue(mod);
+        }
+        if (payload.status) sheet.getRange(i + 1, 8).setValue(payload.status);
+        return { success: true, message: 'User updated successfully' };
+      }
+    }
+    return { success: false, message: 'User ID not found' };
+  }
+
+  if (op === 'delete') {
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(payload.userId)) {
+        sheet.deleteRow(i + 1);
+        return { success: true, message: 'User deleted successfully' };
+      }
+    }
+    return { success: false, message: 'User ID not found' };
+  }
   return { success: false, message: 'Invalid operation' };
 }
 
@@ -1574,26 +1614,32 @@ function getOrCreateSheet(ss, name) {
 function setupDailySyncTrigger() {
   const triggers = ScriptApp.getProjectTriggers();
   for (let i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === 'dailyNightlySync') {
+    const fn = triggers[i].getHandlerFunction();
+    if (fn === 'dailyMorningSync' || fn === 'dailyNightlySync') {
       ScriptApp.deleteTrigger(triggers[i]);
     }
   }
 
-  ScriptApp.newTrigger('dailyNightlySync')
+  ScriptApp.newTrigger('dailyMorningSync')
     .timeBased()
-    .atHour(2)
+    .atHour(8)
     .everyDays(1)
     .inTimezone('Asia/Kolkata')
     .create();
 
-  showSafeAlert('Automation Trigger Installed', 'Daily automatic sync is scheduled at 2:00 AM IST nightly.');
+  showSafeAlert('Automation Trigger Installed', 'Daily automatic sync is scheduled at 8:00 AM IST morning.');
+  return { success: true, message: 'Daily automatic sync scheduled at 8:00 AM IST morning.' };
 }
 
-function dailyNightlySync() {
+function dailyMorningSync() {
   const now = new Date();
   const past30 = new Date();
   past30.setDate(now.getDate() - 30);
   const fromStr = Utilities.formatDate(past30, 'Asia/Kolkata', 'dd-MM-yyyy');
   const toStr = Utilities.formatDate(now, 'Asia/Kolkata', 'dd-MM-yyyy');
   updateAllServicesInMasterSheet(fromStr, toStr);
+}
+
+function dailyNightlySync() {
+  dailyMorningSync();
 }

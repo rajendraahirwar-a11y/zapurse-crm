@@ -368,6 +368,9 @@ const Api = {
         };
       }
 
+      case 'setupDailySyncTrigger':
+        return { success: true, message: 'Daily automatic sync scheduled at 8:00 AM IST morning (Demo Mode).' };
+
       default:
         return { error: 'Unknown action' };
     }
@@ -477,9 +480,34 @@ const Api = {
             return { success: true, message: `User status changed to ${u.status}` };
           }
           return { success: false, message: 'User not found' };
+        } else if (payload.operation === 'edit' || payload.operation === 'update') {
+          const u = db.users.find(x => x.userId === payload.userId);
+          if (u) {
+            if (payload.name) u.name = payload.name;
+            if (payload.username) u.username = payload.username;
+            if (payload.password) u.password = payload.password;
+            if (payload.role) u.role = payload.role;
+            if (payload.status) u.status = payload.status;
+            if (payload.allowedServices) u.allowedServices = Array.isArray(payload.allowedServices) ? payload.allowedServices : [payload.allowedServices];
+            if (payload.allowedModules) u.allowedModules = Array.isArray(payload.allowedModules) ? payload.allowedModules : [payload.allowedModules];
+            this._saveDemoDb(db);
+            return { success: true, message: 'User updated successfully' };
+          }
+          return { success: false, message: 'User not found' };
+        } else if (payload.operation === 'delete') {
+          const idx = db.users.findIndex(x => x.userId === payload.userId);
+          if (idx !== -1) {
+            db.users.splice(idx, 1);
+            this._saveDemoDb(db);
+            return { success: true, message: 'User deleted successfully' };
+          }
+          return { success: false, message: 'User not found' };
         }
         return { success: false, message: 'Unsupported user operation' };
       }
+
+      case 'setupDailySyncTrigger':
+        return { success: true, message: 'Daily automatic sync scheduled at 8:00 AM IST morning (Demo Mode).' };
 
       default:
         return { error: 'Unknown post action' };
