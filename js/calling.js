@@ -17,6 +17,7 @@ const Calling = {
   recSeconds: 0,
 
   async load() {
+    this.populateServiceDropdown();
     const includeToday = document.getElementById('calling-include-today-toggle')?.checked ? 'true' : 'false';
     const service = document.getElementById('calling-filter-service')?.value || 'ALL';
     const search = document.getElementById('calling-filter-search')?.value || '';
@@ -59,6 +60,15 @@ const Calling = {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-rose-400 font-medium">Failed to load calling queue. Please retry.</td></tr>`;
       }
     }
+  },
+
+  populateServiceDropdown(services) {
+    const sel = document.getElementById('calling-filter-service');
+    if (!sel) return;
+    const currentVal = sel.value || 'ALL';
+    const sList = services && services.length > 0 ? services : Config.DEFAULT_SERVICES;
+    sel.innerHTML = `<option value="ALL">All Services</option>` +
+      sList.map(s => `<option value="${s}" ${s === currentVal ? 'selected' : ''}>${s}</option>`).join('');
   },
 
   handleSearch() {

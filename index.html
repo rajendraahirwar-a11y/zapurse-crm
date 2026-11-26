@@ -484,7 +484,13 @@
                 <!-- Service Dropdown -->
                 <select id="sales-filter-service" onchange="Dashboard.filterSalesTable()" class="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500">
                   <option value="ALL">All Services</option>
-                  <!-- Populated from config -->
+                  <option value="ZAPAEPS">ZAPAEPS</option>
+                  <option value="ZAPUPI">ZAPUPI</option>
+                  <option value="ZAPRECHARGE">ZAPRECHARGE</option>
+                  <option value="B2C">B2C</option>
+                  <option value="RISLUPI">RISLUPI</option>
+                  <option value="RISLDMT">RISLDMT</option>
+                  <option value="RISLRECHARGE">RISLRECHARGE</option>
                 </select>
 
                 <!-- Search Input -->
@@ -738,7 +744,13 @@
                 <label class="block text-[11px] font-semibold text-slate-400 mb-1">Filter by Service</label>
                 <select id="calling-filter-service" onchange="Calling.load()" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
                   <option value="ALL">All Services</option>
-                  <!-- Populated from config -->
+                  <option value="ZAPAEPS">ZAPAEPS</option>
+                  <option value="ZAPUPI">ZAPUPI</option>
+                  <option value="ZAPRECHARGE">ZAPRECHARGE</option>
+                  <option value="B2C">B2C</option>
+                  <option value="RISLUPI">RISLUPI</option>
+                  <option value="RISLDMT">RISLDMT</option>
+                  <option value="RISLRECHARGE">RISLRECHARGE</option>
                 </select>
               </div>
 
@@ -1353,17 +1365,17 @@
 
 
   <!-- =========================================================================
-       5. APPLICATION JAVASCRIPT MODULES (v13 Streamlined Calling Filters & Admin Target Rules)
+       5. APPLICATION JAVASCRIPT MODULES (v14 Service Filter Dropdown & Checkbox Permissions)
        ========================================================================= -->
-  <script src="js/config.js?v=13"></script>
-  <script src="js/api.js?v=13"></script>
-  <script src="js/auth.js?v=13"></script>
-  <script src="js/dashboard.js?v=13"></script>
-  <script src="js/services.js?v=13"></script>
-  <script src="js/calling.js?v=13"></script>
-  <script src="js/reports.js?v=13"></script>
-  <script src="js/admin.js?v=13"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/config.js?v=14"></script>
+  <script src="js/api.js?v=14"></script>
+  <script src="js/auth.js?v=14"></script>
+  <script src="js/dashboard.js?v=14"></script>
+  <script src="js/services.js?v=14"></script>
+  <script src="js/calling.js?v=14"></script>
+  <script src="js/reports.js?v=14"></script>
+  <script src="js/admin.js?v=14"></script>
+  <script src="js/app.js?v=14"></script>
 
   <!-- PWA Service Worker Registration (Runs over HTTP/HTTPS) -->
   <script>

@@ -120,7 +120,52 @@ const Admin = {
     if (window.lucide) lucide.createIcons();
   },
 
+  getServiceCheckboxesHtml(selectedServices, prefix) {
+    const defaultList = ['ZAPAEPS', 'ZAPUPI', 'ZAPRECHARGE', 'B2C', 'RISLUPI', 'RISLDMT', 'RISLRECHARGE'];
+    let services = (this.configState && this.configState.services && this.configState.services.length >= 6)
+      ? [...this.configState.services]
+      : defaultList;
+    if (!services.includes('B2C')) services.push('B2C');
+
+    const isAll = !selectedServices || selectedServices.length === 0 || selectedServices.includes('ALL');
+
+    return `
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block font-semibold text-slate-300">Access Permissions (Tick to Allow)</label>
+          <button type="button" onclick="Admin.toggleAllServiceCheckboxes('${prefix}')" class="text-[11px] text-brand-400 hover:text-brand-300 font-semibold cursor-pointer">
+            Select / Deselect All
+          </button>
+        </div>
+        <div class="p-2.5 bg-slate-900 border border-slate-700/80 rounded-xl grid grid-cols-2 gap-2 text-xs max-h-36 overflow-y-auto">
+          ${services.map(s => {
+            const checked = isAll || (Array.isArray(selectedServices) && selectedServices.includes(s)) ? 'checked' : '';
+            return `
+              <label class="flex items-center gap-2 p-1.5 rounded-lg bg-slate-800/70 hover:bg-slate-800 cursor-pointer select-none">
+                <input type="checkbox" name="${prefix}-service-cb" value="${s}" ${checked} class="w-4 h-4 rounded text-brand-500 accent-emerald-500 cursor-pointer">
+                <span class="font-medium text-slate-200">${s}</span>
+              </label>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  },
+
+  toggleAllServiceCheckboxes(prefix) {
+    const cbs = document.querySelectorAll(`input[name="${prefix}-service-cb"]`);
+    const anyUnchecked = Array.from(cbs).some(cb => !cb.checked);
+    cbs.forEach(cb => cb.checked = anyUnchecked);
+  },
+
+  getSelectedServices(prefix) {
+    const cbs = document.querySelectorAll(`input[name="${prefix}-service-cb"]:checked`);
+    return Array.from(cbs).map(cb => cb.value);
+  },
+
   async showCreateUserModal() {
+    const checkboxesHtml = this.getServiceCheckboxesHtml(['ALL'], 'swal-create');
+
     const { value: formValues } = await Swal.fire({
       title: 'Add New CRM User',
       html: `
@@ -145,22 +190,34 @@ const Admin = {
               <option value="Admin">Admin</option>
             </select>
           </div>
-          <div>
-            <label class="block font-semibold mb-1">Allowed Services (Comma separated or ALL)</label>
-            <input id="swal-user-services" class="swal2-input !m-0 !w-full !text-xs !h-9" value="ALL" placeholder="ALL or ZAP AEPS, ZAPUPI">
-          </div>
+          ${checkboxesHtml}
         </div>
       `,
       focusConfirm: false,
       showCancelButton: true,
       confirmButtonText: 'Create User',
       preConfirm: () => {
+        const name = document.getElementById('swal-user-name').value.trim();
+        const username = document.getElementById('swal-user-uname').value.trim();
+        const pass = document.getElementById('swal-user-pass').value.trim();
+        const role = document.getElementById('swal-user-role').value;
+        const allowedServices = Admin.getSelectedServices('swal-create');
+
+        if (!name || !username) {
+          Swal.showValidationMessage('Name and Username are required');
+          return false;
+        }
+        if (allowedServices.length === 0) {
+          Swal.showValidationMessage('Please select at least one service permission');
+          return false;
+        }
+
         return {
-          name: document.getElementById('swal-user-name').value.trim(),
-          username: document.getElementById('swal-user-uname').value.trim(),
-          password: document.getElementById('swal-user-pass').value.trim(),
-          role: document.getElementById('swal-user-role').value,
-          allowedServices: document.getElementById('swal-user-services').value.split(',').map(s => s.trim())
+          name,
+          username,
+          password: pass || '123456',
+          role,
+          allowedServices
         };
       }
     });
@@ -186,7 +243,7 @@ const Admin = {
       return;
     }
 
-    const currentServices = Array.isArray(u.allowedServices) ? u.allowedServices.join(', ') : (u.allowedServices || 'ALL');
+    const checkboxesHtml = this.getServiceCheckboxesHtml(u.allowedServices, 'swal-edit');
 
     const { value: formValues } = await Swal.fire({
       title: 'Edit CRM User: ' + u.name,
@@ -223,10 +280,7 @@ const Admin = {
               <option value="Inactive" ${u.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
             </select>
           </div>
-          <div>
-            <label class="block font-semibold mb-1 text-slate-300">Allowed Services (Comma separated or ALL)</label>
-            <input id="swal-edit-services" class="swal2-input !m-0 !w-full !text-xs !h-9" value="${currentServices}" placeholder="ALL or ZAP AEPS, ZAPUPI, RISLDMT">
-          </div>
+          ${checkboxesHtml}
         </div>
       `,
       focusConfirm: false,
@@ -239,10 +293,14 @@ const Admin = {
         const pass = document.getElementById('swal-edit-pass').value.trim();
         const role = document.getElementById('swal-edit-role').value;
         const status = document.getElementById('swal-edit-status').value;
-        const services = document.getElementById('swal-edit-services').value.split(',').map(s => s.trim()).filter(Boolean);
+        const allowedServices = Admin.getSelectedServices('swal-edit');
 
         if (!name || !username) {
           Swal.showValidationMessage('Name and Username are required');
+          return false;
+        }
+        if (allowedServices.length === 0) {
+          Swal.showValidationMessage('Please select at least one service permission');
           return false;
         }
 
@@ -251,7 +309,7 @@ const Admin = {
           username,
           role,
           status,
-          allowedServices: services
+          allowedServices
         };
         if (pass) {
           payload.password = pass;

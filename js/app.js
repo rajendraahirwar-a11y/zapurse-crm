@@ -99,6 +99,16 @@ const App = {
       </a>
     `).join('');
 
+    // Also sync all service filter dropdowns across views
+    ['calling-filter-service', 'sales-filter-service'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) {
+        const cur = sel.value || 'ALL';
+        sel.innerHTML = `<option value="ALL">All Services</option>` +
+          services.map(s => `<option value="${s}" ${s === cur ? 'selected' : ''}>${s}</option>`).join('');
+      }
+    });
+
     if (window.lucide) lucide.createIcons();
   },
 
