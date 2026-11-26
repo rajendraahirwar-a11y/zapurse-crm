@@ -144,12 +144,6 @@ const Api = {
         { txnId: 'TXN9011', date: `${curYear}-11-01`, clientId: 'CL1006', clientName: 'Gupta Online Center', mobile: '9829067890', serviceName: 'RISLRECHARGE', txnCount: 110, volume: 42000, commission: 1050 },
         { txnId: 'TXN9012', date: `${curYear}-11-20`, clientId: 'CL1010', clientName: 'Apex Banking Mitra', mobile: '9829091234', serviceName: 'RISLUPI', txnCount: 195, volume: 290000, commission: 1450 }
       ],
-        { txnId: 'TXN9008', date: `${curYear}-08-19`, clientId: 'CL1009', clientName: 'Aman Pay Point', mobile: '9829090123', serviceName: 'ZAPUPI', txnCount: 180, volume: 220000, commission: 1100 },
-        { txnId: 'TXN9009', date: `${curYear}-09-11`, clientId: 'CL1008', clientName: 'Shree Ram Cyber Cafe', mobile: '9829089012', serviceName: 'RISLDMT', txnCount: 90, volume: 190000, commission: 950 },
-        { txnId: 'TXN9010', date: `${curYear}-10-05`, clientId: 'CL1001', clientName: 'Jai Mahaveer Telecom', mobile: '9829012345', serviceName: 'ZAP AEPS', txnCount: 240, volume: 720000, commission: 3600 },
-        { txnId: 'TXN9011', date: `${curYear}-11-01`, clientId: 'CL1006', clientName: 'Gupta Online Center', mobile: '9829067890', serviceName: 'RISL RECHARGE', txnCount: 110, volume: 42000, commission: 1050 },
-        { txnId: 'TXN9012', date: `${curYear}-11-20`, clientId: 'CL1010', clientName: 'Apex Banking Mitra', mobile: '9829091234', serviceName: 'RISLUPI', txnCount: 195, volume: 290000, commission: 1450 }
-      ],
       calls: [
         {
           callId: 'CAL1001',
