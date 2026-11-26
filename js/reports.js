@@ -78,30 +78,35 @@ const Reports = {
       return;
     }
 
-    tbody.innerHTML = matrix.map(m => `
-      <tr class="hover:bg-slate-800/40 transition">
-        <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${m.clientId}</td>
-        <td class="py-3 px-3.5 font-bold text-white">${m.clientName}</td>
-        <td class="py-3 px-3.5 text-slate-400">${m.mobile}</td>
-        <td class="py-3 px-3.5 text-slate-300">${m.cityState || m.city}</td>
-        <td class="py-3 px-3.5">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-            ${m.primaryService || m.service || 'General'}
-          </span>
-        </td>
-        <td class="py-3 px-3.5 text-right font-mono font-bold text-white">
-          ₹${Number(m.yearlySales || 0).toLocaleString('en-IN')}
-        </td>
-        <td class="py-3 px-3.5 text-center font-bold">
-          ${m.followupsCount || 0} / 5
-        </td>
-        <td class="py-3 px-3.5 text-center">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${m.status === 'Locked' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
-            ${m.status || 'Active'}
-          </span>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = matrix.map(m => {
+      const followups = m.followupsCount !== undefined ? m.followupsCount : (m.followups || 0);
+      const isLocked = m.status === 'Locked' || followups >= 5;
+
+      return `
+        <tr class="hover:bg-slate-800/40 transition">
+          <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${m.clientId}</td>
+          <td class="py-3 px-3.5 font-bold text-white">${m.clientName}</td>
+          <td class="py-3 px-3.5 text-slate-400 font-mono">${m.mobile}</td>
+          <td class="py-3 px-3.5 text-slate-300 font-medium">${m.cityState || m.city || 'India'}</td>
+          <td class="py-3 px-3.5 whitespace-nowrap">
+            ${Config.getServiceBadgeHtml(m.primaryService || m.service || 'General')}
+          </td>
+          <td class="py-3 px-3.5 text-right font-mono font-bold text-white">
+            ₹${Number(m.yearlySales || 0).toLocaleString('en-IN')}
+          </td>
+          <td class="py-3 px-3.5 text-center font-bold">
+            <span class="${isLocked ? 'text-rose-400 font-extrabold' : 'text-slate-300'}">
+              ${followups} / 5
+            </span>
+          </td>
+          <td class="py-3 px-3.5 text-center">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isLocked ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
+              ${isLocked ? 'Locked' : (m.status || 'Active')}
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join('');
   },
 
   exportReportCSV() {

@@ -128,5 +128,20 @@ const Config = {
     if (cleanName.includes('ZAPURSE PAYMENTGATEWAY USER')) return true;
     if (cleanMobile === '7024219540') return true;
     return false;
+  },
+
+  /**
+   * Universal Service Badge Component (Crisp & High Contrast in both Dark & Light Themes)
+   */
+  getServiceBadgeHtml(serviceName) {
+    const s = String(serviceName || 'General').toUpperCase().trim();
+    let themeClass = 'srv-badge-default';
+    if (s.includes('AEPS')) themeClass = 'srv-badge-aeps';
+    else if (s === 'B2C' || s.includes('B2C')) themeClass = 'srv-badge-b2c';
+    else if (s.includes('UPI')) themeClass = 'srv-badge-upi';
+    else if (s.includes('RECHARGE')) themeClass = 'srv-badge-recharge';
+    else if (s.includes('DMT')) themeClass = 'srv-badge-dmt';
+
+    return `<span class="service-pill-badge ${themeClass}">${serviceName || 'General'}</span>`;
   }
 };

@@ -82,17 +82,28 @@ const Calling = {
     }
 
     tbody.innerHTML = clients.map(c => {
+      // Safe Inactive Days calculation
+      let inactiveDays = c.inactiveDays;
+      if (inactiveDays === undefined && c.lastTxnDate) {
+        const parts = String(c.lastTxnDate).substring(0, 10).split('-');
+        if (parts.length === 3) {
+          const d = new Date(parts[0], parts[1] - 1, parts[2]);
+          inactiveDays = Math.max(0, Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24)));
+        }
+      }
+      if (inactiveDays === undefined || isNaN(inactiveDays)) inactiveDays = 999;
+
       // Inactive badge color
       let badgeColor = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      if (c.inactiveDays >= 30) badgeColor = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-      else if (c.inactiveDays >= 10) badgeColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      if (inactiveDays >= 30) badgeColor = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      else if (inactiveDays >= 10) badgeColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
 
-      const isLocked = c.status === 'Locked';
+      const isLocked = c.status === 'Locked' || (c.followupsCount || 0) >= 5;
       const isConverted = c.status === 'Converted';
 
       let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Active</span>`;
       if (isLocked) {
-        statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">Locked (${c.followupsCount})</span>`;
+        statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">Locked</span>`;
       } else if (isConverted) {
         statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Converted</span>`;
       }
@@ -101,23 +112,26 @@ const Calling = {
         <tr class="hover:bg-slate-800/40 transition">
           <td class="py-3 px-3.5 font-mono text-brand-400 font-semibold">${c.clientId}</td>
           <td class="py-3 px-3.5 font-bold text-white">${c.clientName}</td>
-          <td class="py-3 px-3.5 text-slate-300">${c.mobile}</td>
-          <td class="py-3 px-3.5 text-slate-400">${c.cityState}</td>
-          <td class="py-3 px-3.5">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
-              ${c.primaryService || 'General'}
-            </span>
+          <td class="py-3 px-3.5 text-slate-300 font-mono">${c.mobile}</td>
+          <td class="py-3 px-3.5 text-slate-400">${c.cityState || 'India'}</td>
+          <td class="py-3 px-3.5 whitespace-nowrap">
+            ${Config.getServiceBadgeHtml(c.primaryService || 'General')}
           </td>
-          <td class="py-3 px-3.5">
-            <span class="px-2 py-0.5 rounded-full text-xs font-bold border ${badgeColor}">
-              ${c.inactiveDays === 999 ? 'No Txns' : `${c.inactiveDays} Days`}
+          <td class="py-3 px-3.5 whitespace-nowrap">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeColor}">
+              ${inactiveDays === 999 ? 'No Txns' : `${inactiveDays} Days`}
             </span>
           </td>
           <td class="py-3 px-3.5 text-right font-mono font-bold text-white">
             ₹${Number(c.yearlySales || 0).toLocaleString('en-IN')}
           </td>
-          <td class="py-3 px-3.5 text-center">
-            ${statusBadge}
+          <td class="py-3 px-3.5 text-center whitespace-nowrap">
+            <div class="flex items-center justify-center gap-1.5">
+              <span class="font-bold text-xs ${isLocked ? 'text-rose-400 font-extrabold' : 'text-slate-300'}">
+                ${c.followupsCount || 0} / 5
+              </span>
+              ${statusBadge}
+            </div>
           </td>
           <td class="py-3 px-3.5 text-center">
             <button onclick="Calling.openCallModalById('${c.clientId}')" 

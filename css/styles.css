@@ -624,3 +624,174 @@ html.light #sidebar-footer-container {
   background-color: rgba(255, 255, 255, 0.98) !important;
   border-top: 1px solid #e2e8f0 !important;
 }
+
+/* ==============================================================================
+   UNIVERSAL SERVICE PILL BADGES (High-Contrast in Both Themes)
+   ============================================================================== */
+.service-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transition: all 0.15s ease-in-out;
+}
+
+/* Dark Mode Badges */
+.srv-badge-aeps {
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.35);
+}
+.srv-badge-b2c {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+.srv-badge-upi {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+.srv-badge-recharge {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+.srv-badge-dmt {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.srv-badge-default {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* Light Mode Badges (Pure, vibrant, high-contrast readability) */
+html.light .srv-badge-aeps {
+  background-color: #f0f9ff !important;
+  color: #0369a1 !important;
+  border: 1px solid #bae6fd !important;
+}
+html.light .srv-badge-b2c {
+  background-color: #fff1f2 !important;
+  color: #be123c !important;
+  border: 1px solid #fecdd3 !important;
+}
+html.light .srv-badge-upi {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+html.light .srv-badge-recharge {
+  background-color: #faf5ff !important;
+  color: #6d28d9 !important;
+  border: 1px solid #ddd6fe !important;
+}
+html.light .srv-badge-dmt {
+  background-color: #fffbeb !important;
+  color: #b45309 !important;
+  border: 1px solid #fde68a !important;
+}
+html.light .srv-badge-default {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* ==============================================================================
+   TOOLBAR & SURFACE POLISH (LIGHT MODE OVERRIDES)
+   ============================================================================== */
+html.light .table-filter-toolbar,
+html.light .bg-slate-950\/70 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .table-filter-toolbar .bg-slate-900 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .bg-brand-600 {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #0284c7 !important;
+}
+html.light .bg-brand-600:hover {
+  background-color: #0369a1 !important;
+}
+
+/* ==============================================================================
+   CALLING MODAL POLISH (DARK & LIGHT MODES)
+   ============================================================================== */
+.modal-scroll-body {
+  max-height: calc(90vh - 145px) !important;
+  overflow-y: auto !important;
+}
+
+html.light #call-modal .bg-slate-900 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light #call-modal-limit-box,
+html.light .bg-slate-800\/60,
+html.light .bg-slate-800\/70 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.light #call-modal-limit-box span,
+html.light #call-modal-limit-box div {
+  color: #1e293b !important;
+}
+
+html.light #call-modal-followup-count {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+html.light #call-modal .p-3\.5.bg-slate-800\/70 {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light #call-modal .p-3\.5.bg-slate-800\/70 span {
+  color: #0f172a !important;
+}
+
+html.light #call-modal-history-content {
+  background-color: #ffffff !important;
+}
+
+html.light #call-modal-timeline-list .bg-slate-900 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light #call-modal select,
+html.light #call-modal input,
+html.light #call-modal textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+html.light #call-modal-save-btn {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #0284c7 !important;
+  font-weight: 700 !important;
+}
+
+html.light #call-modal-save-btn:hover {
+  background-color: #0369a1 !important;
+}

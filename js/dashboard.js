@@ -383,10 +383,8 @@ const Dashboard = {
         <td class="py-3 px-3.5 text-slate-300 font-mono text-xs whitespace-nowrap">${item.mobile || '-'}</td>
         <td class="py-3 px-3.5 text-slate-300 text-xs">${item.parentName || '-'}</td>
         <td class="py-3 px-3.5 text-slate-400 font-mono text-xs whitespace-nowrap">${item.parentMobile || '-'}</td>
-        <td class="py-3 px-3.5">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-brand-400 border border-slate-700 whitespace-nowrap">
-            ${item.serviceName}
-          </span>
+        <td class="py-3 px-3.5 whitespace-nowrap">
+          ${Config.getServiceBadgeHtml(item.serviceName)}
         </td>
         <td class="py-3 px-3.5 text-right font-mono font-semibold text-xs">${Number(item.txnCount || 1).toLocaleString('en-IN')}</td>
         <td class="py-3 px-3.5 text-right font-mono font-bold text-white text-xs whitespace-nowrap">₹${Number(item.volume).toLocaleString('en-IN')}</td>

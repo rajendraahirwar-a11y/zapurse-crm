@@ -1232,13 +1232,17 @@ function getClientsHandler(params) {
       continue;
     }
 
-    if (inactiveFilter !== null && lastTxnFormatted) {
+    let inactiveDays = 999;
+    if (lastTxnFormatted) {
       const parts = lastTxnFormatted.split('-');
       if (parts.length === 3) {
         const txnDate = new Date(parts[0], parts[1] - 1, parts[2]);
-        const diffDays = Math.floor((nowMs - txnDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays < inactiveFilter) continue;
+        inactiveDays = Math.max(0, Math.floor((nowMs - txnDate.getTime()) / (1000 * 60 * 60 * 24)));
       }
+    }
+
+    if (inactiveFilter !== null && inactiveDays < inactiveFilter) {
+      continue;
     }
 
     if (!includeToday && lastTxnFormatted === todayStr) {
@@ -1249,9 +1253,10 @@ function getClientsHandler(params) {
       clientId: clientId,
       clientName: clientName,
       mobile: mobile,
-      cityState: cityState,
+      cityState: cityState || 'India',
       assignedUser: assignedUser,
       lastTxnDate: lastTxnFormatted,
+      inactiveDays: inactiveDays,
       yearlySales: yearlySales,
       followupsCount: followupsCount,
       status: status,
@@ -1484,15 +1489,19 @@ function getReportsHandler(params) {
   let clientMatrix = [];
   if (clientsSheet) {
     const cData = clientsSheet.getDataRange().getValues();
-    for (let i = 1; i < Math.min(cData.length, 100); i++) {
+    for (let i = 1; i < Math.min(cData.length, 300); i++) {
       clientMatrix.push({
         clientId: cData[i][0],
         clientName: cData[i][1],
         mobile: cData[i][2],
-        service: cData[i][9],
+        city: cData[i][3] || 'India',
+        cityState: cData[i][3] || 'India',
+        service: cData[i][9] || 'General',
+        primaryService: cData[i][9] || 'General',
         yearlySales: Number(cData[i][6]) || 0,
         followups: Number(cData[i][7]) || 0,
-        status: cData[i][8]
+        followupsCount: Number(cData[i][7]) || 0,
+        status: cData[i][8] || 'Active'
       });
     }
   }
