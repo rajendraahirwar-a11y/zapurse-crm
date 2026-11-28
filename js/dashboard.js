@@ -20,6 +20,14 @@ const Dashboard = {
 
   async load() {
     try {
+      // Show loading feedback if no cache is immediately available
+      const tbody = document.getElementById('sales-tbody');
+      const hasCached = (Api._cache && Api._cache['getInitialData']) || sessionStorage.getItem('zap_cache_getInitialData');
+      if (tbody && !hasCached) {
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-slate-400 font-medium"><i data-lucide="loader-2" class="w-4 h-4 animate-spin inline mr-2 text-brand-400"></i>Loading live sales transactions...</td></tr>`;
+        if (window.lucide) lucide.createIcons();
+      }
+
       const data = await Api.get('getInitialData');
       
       // Determine Yesterday & Today date strings

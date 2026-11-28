@@ -6,14 +6,81 @@
 
 const Api = {
 
+  // High-performance In-Memory & Session Storage Cache Layer
+  _cache: {},
+  _cacheTimestamps: {},
+  CACHE_TTL_MS: 3 * 60 * 1000, // 3 minutes freshness
+
+  clearCache(action = null) {
+    if (action) {
+      Object.keys(this._cache).forEach(k => {
+        if (k.startsWith(action)) {
+          delete this._cache[k];
+          delete this._cacheTimestamps[k];
+          try { sessionStorage.removeItem('zap_cache_' + k); } catch (e) {}
+        }
+      });
+    } else {
+      this._cache = {};
+      this._cacheTimestamps = {};
+      try {
+        const keysToRemove = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith('zap_cache_')) keysToRemove.push(k);
+        }
+        keysToRemove.forEach(k => sessionStorage.removeItem(k));
+      } catch (e) {}
+    }
+  },
+
   /**
-   * Send GET request to Apps Script Web App
+   * Send GET request to Apps Script Web App (with High-Speed Stale-While-Revalidate Caching)
    */
-  async get(action, params = {}) {
-    if (Config.isDemoMode()) {
-      return this.handleDemoGet(action, params);
+  async get(action, params = {}, options = {}) {
+    const bypassCache = !!options.bypassCache;
+    const cacheKey = action + (Object.keys(params).length ? '_' + JSON.stringify(params) : '');
+    const now = Date.now();
+
+    if (!bypassCache) {
+      // 1. Check in-memory cache
+      const cached = this._cache[cacheKey];
+      const ts = this._cacheTimestamps[cacheKey] || 0;
+
+      if (cached && (now - ts < this.CACHE_TTL_MS)) {
+        // Trigger non-blocking background revalidation if data is older than 45s
+        if (now - ts > 45 * 1000 && !options.noBackgroundSync) {
+          setTimeout(() => {
+            this._fetchAndCache(action, params, cacheKey).catch(() => {});
+          }, 50);
+        }
+        return cached;
+      }
+
+      // 2. Check sessionStorage cache
+      try {
+        const stored = sessionStorage.getItem('zap_cache_' + cacheKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.data && (now - parsed.ts < this.CACHE_TTL_MS)) {
+            this._cache[cacheKey] = parsed.data;
+            this._cacheTimestamps[cacheKey] = parsed.ts;
+            return parsed.data;
+          }
+        }
+      } catch (e) {}
     }
 
+    if (Config.isDemoMode()) {
+      const data = await this.handleDemoGet(action, params);
+      this._setCache(cacheKey, data);
+      return data;
+    }
+
+    return await this._fetchAndCache(action, params, cacheKey);
+  },
+
+  async _fetchAndCache(action, params, cacheKey) {
     const apiUrl = Config.getApiUrl();
     const queryParams = new URLSearchParams({ action, ...params });
     const fullUrl = `${apiUrl}?${queryParams.toString()}`;
@@ -26,14 +93,29 @@ const Api = {
         }
       });
       const data = await response.json();
+      this._setCache(cacheKey, data);
       return data;
     } catch (err) {
-      console.warn('Live API request failed:', err);
+      console.warn(`API GET (${action}) failed:`, err);
+      // Fallback to stale cache if available
+      if (this._cache[cacheKey]) {
+        console.info(`Serving stale cache for (${action}) due to network error`);
+        return this._cache[cacheKey];
+      }
       if (Config.isDemoMode()) {
         return this.handleDemoGet(action, params);
       }
       throw err;
     }
+  },
+
+  _setCache(cacheKey, data) {
+    const now = Date.now();
+    this._cache[cacheKey] = data;
+    this._cacheTimestamps[cacheKey] = now;
+    try {
+      sessionStorage.setItem('zap_cache_' + cacheKey, JSON.stringify({ ts: now, data }));
+    } catch (e) {}
   },
 
   /**
@@ -56,6 +138,8 @@ const Api = {
         body: bodyData
       });
       const data = await response.json();
+      // Invalidate relevant cache on mutating POST
+      this.clearCache();
       return data;
     } catch (err) {
       console.warn('Live API POST failed:', err);

@@ -73,7 +73,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/styles.css?v=17">
+  <link rel="stylesheet" href="css/styles.css?v=18">
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased h-screen overflow-hidden flex flex-col selection:bg-brand-600 selection:text-white">
 
@@ -633,7 +633,7 @@
                 <span>Service Transactions Record</span>
               </h3>
               <span id="service-filter-status-tag" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20">
-                All Transactions
+                Yesterday (Default)
               </span>
             </div>
 
@@ -646,10 +646,10 @@
                 </span>
                 <!-- Quick Range Pills -->
                 <div class="inline-flex p-0.5 bg-slate-900 rounded-lg border border-slate-800 text-xs">
-                  <button type="button" onclick="Services.applyQuickFilter('all')" id="srv-pill-all" class="srv-pill-btn active px-3 py-1 rounded-md text-xs font-bold bg-brand-600 text-white shadow-sm transition">
+                  <button type="button" onclick="Services.applyQuickFilter('all')" id="srv-pill-all" class="srv-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
                     All
                   </button>
-                  <button type="button" onclick="Services.applyQuickFilter('yesterday')" id="srv-pill-yesterday" class="srv-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
+                  <button type="button" onclick="Services.applyQuickFilter('yesterday')" id="srv-pill-yesterday" class="srv-pill-btn active px-3 py-1 rounded-md text-xs font-bold bg-brand-600 text-white shadow-sm transition">
                     Yesterday
                   </button>
                   <button type="button" onclick="Services.applyQuickFilter('today')" id="srv-pill-today" class="srv-pill-btn px-3 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-white transition">
@@ -1818,17 +1818,17 @@
   </div>
 
   <!-- =========================================================================
-       5. APPLICATION JAVASCRIPT MODULES (v17 Services Picker & Instant Navigation)
+       5. APPLICATION JAVASCRIPT MODULES (v18 Ultra-Fast SWR Caching & Performance)
        ========================================================================= -->
-  <script src="js/config.js?v=17"></script>
-  <script src="js/api.js?v=17"></script>
-  <script src="js/auth.js?v=17"></script>
-  <script src="js/dashboard.js?v=17"></script>
-  <script src="js/services.js?v=17"></script>
-  <script src="js/calling.js?v=17"></script>
-  <script src="js/reports.js?v=17"></script>
-  <script src="js/admin.js?v=17"></script>
-  <script src="js/app.js?v=17"></script>
+  <script src="js/config.js?v=18"></script>
+  <script src="js/api.js?v=18"></script>
+  <script src="js/auth.js?v=18"></script>
+  <script src="js/dashboard.js?v=18"></script>
+  <script src="js/services.js?v=18"></script>
+  <script src="js/calling.js?v=18"></script>
+  <script src="js/reports.js?v=18"></script>
+  <script src="js/admin.js?v=18"></script>
+  <script src="js/app.js?v=18"></script>
 
   <!-- PWA Service Worker Registration (Runs over HTTP/HTTPS) -->
   <script>

@@ -496,6 +496,9 @@ const App = {
           </div>
         `
       });
+      if (window.Api && typeof Api.clearCache === 'function') {
+        Api.clearCache();
+      }
       this.navigate(this.currentView);
     } catch (err) {
       Swal.fire('Sync Error', err.message, 'error');

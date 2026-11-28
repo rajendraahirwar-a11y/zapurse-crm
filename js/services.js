@@ -8,7 +8,7 @@ const Services = {
   currentService: '',
   allServiceSales: [],
   filteredServiceSales: [],
-  activeDateFilter: 'all', // 'all' (default for service deep dive) | 'yesterday' | 'today' | '7days' | 'custom'
+  activeDateFilter: 'yesterday', // 'yesterday' (Default as per user requirement) | 'today' | '7days' | 'custom' | 'all'
   systemYesterdayDate: '',
   systemTodayDate: '',
   customFromDate: '',
@@ -36,8 +36,8 @@ const Services = {
     const subtitle = document.getElementById('service-view-subtitle');
     if (subtitle) subtitle.textContent = `Dedicated live monitoring & transactions matrix for ${serviceName}.`;
 
-    // Reset date filter state
-    this.activeDateFilter = 'all';
+    // Reset date filter state to Yesterday (Default)
+    this.activeDateFilter = 'yesterday';
     this.customFromDate = '';
     this.customToDate = '';
     const fromInput = document.getElementById('service-from-date');
@@ -47,25 +47,46 @@ const Services = {
     if (toInput) toInput.value = '';
     if (searchInput) searchInput.value = '';
 
-    // Show loading state
-    const volElem = document.getElementById('service-view-total-vol');
-    const txnsElem = document.getElementById('service-view-total-txns');
-    const tbody = document.getElementById('service-sales-tbody');
-    const topContainer = document.getElementById('service-top-merchants');
-    const bottomContainer = document.getElementById('service-bottom-merchants');
-
-    if (volElem) volElem.textContent = 'Loading...';
-    if (txnsElem) txnsElem.textContent = 'Loading...';
-    if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400 font-medium"><i data-lucide="loader-2" class="w-5 h-5 animate-spin inline mr-2 text-brand-400"></i>Loading live ${serviceName} transactions...</td></tr>`;
-    if (window.lucide) lucide.createIcons();
-
     // Determine Today & Yesterday
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     this.systemTodayDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-    const yDate = new Date(now);
-    yDate.setDate(now.getDate() - 1);
-    this.systemYesterdayDate = `${yDate.getFullYear()}-${pad(yDate.getMonth() + 1)}-${pad(yDate.getDate())}`;
+
+    // Reuse closed business date from Dashboard if available
+    if (window.Dashboard && Dashboard.systemYesterdayDate) {
+      this.systemYesterdayDate = Dashboard.systemYesterdayDate;
+    } else {
+      const yDate = new Date(now);
+      yDate.setDate(now.getDate() - 1);
+      this.systemYesterdayDate = `${yDate.getFullYear()}-${pad(yDate.getMonth() + 1)}-${pad(yDate.getDate())}`;
+    }
+
+    // ⚡ ZERO-LATENCY PRE-RENDER: If Dashboard already loaded sales in memory, render immediately!
+    let hasPreRendered = false;
+    if (window.Dashboard && Array.isArray(Dashboard.allSalesData) && Dashboard.allSalesData.length > 0) {
+      const immediateSales = Dashboard.allSalesData.filter(s => {
+        if (Config.isPaymentGatewayUser(s.clientName, s.mobile)) return false;
+        return (s.serviceName || '').toUpperCase() === (serviceName || '').toUpperCase();
+      });
+      if (immediateSales.length > 0) {
+        this.allServiceSales = immediateSales;
+        this.updatePillUI();
+        this.renderFilteredView();
+        hasPreRendered = true;
+      }
+    }
+
+    // Show loading indicator only if no pre-rendered data exists
+    const volElem = document.getElementById('service-view-total-vol');
+    const txnsElem = document.getElementById('service-view-total-txns');
+    const tbody = document.getElementById('service-sales-tbody');
+
+    if (!hasPreRendered) {
+      if (volElem) volElem.textContent = 'Loading...';
+      if (txnsElem) txnsElem.textContent = 'Loading...';
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400 font-medium"><i data-lucide="loader-2" class="w-5 h-5 animate-spin inline mr-2 text-brand-400"></i>Loading live ${serviceName} transactions...</td></tr>`;
+      if (window.lucide) lucide.createIcons();
+    }
 
     try {
       let data = await Api.get('getServiceData', { service: serviceName });
@@ -177,7 +198,7 @@ const Services = {
 
     this.customFromDate = '';
     this.customToDate = '';
-    this.activeDateFilter = 'all';
+    this.activeDateFilter = 'yesterday';
     this.updatePillUI();
     this.renderFilteredView();
   },

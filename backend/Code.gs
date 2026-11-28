@@ -536,7 +536,6 @@ function parseSheetRows(sheet, defaultServiceName) {
     rows.push({
       txnId: `${sName}_${dStr}_${clientId}_${i}`,
       date: dStr,
-      dateRaw: dateRaw,
       clientId: clientId,
       clientName: clientName,
       mobile: mobile,
@@ -1211,7 +1210,7 @@ function getInitialDataHandler(params) {
     .sort((a, b) => a.yearlySales - b.yearlySales)
     .slice(0, 5);
 
-  const recentSales = allSales.slice(-2000).reverse();
+  const recentSales = allSales.slice(-1000).reverse();
 
   let services = CONFIG.SERVICE_TYPES;
   if (configMap["Services_List"]) {
