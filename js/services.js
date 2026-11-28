@@ -18,14 +18,9 @@ const Services = {
     this.currentService = serviceName;
     App.switchView('services');
 
-    // Update horizontal pills switcher bar & bottom nav
-    if (window.App) {
-      if (typeof App.populateServicesPillsBar === 'function') {
-        App.populateServicesPillsBar(serviceName);
-      }
-      if (typeof App.updateMobileBottomNav === 'function') {
-        App.updateMobileBottomNav('services');
-      }
+    // Update mobile bottom nav state
+    if (window.App && typeof App.updateMobileBottomNav === 'function') {
+      App.updateMobileBottomNav('services');
     }
 
     // Update screen title badge & headers

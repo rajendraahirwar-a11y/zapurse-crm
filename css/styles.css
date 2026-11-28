@@ -1011,32 +1011,3 @@ html.light .service-picker-card h4 {
 html.light .service-picker-card p {
   color: #64748b !important;
 }
-
-/* Horizontal Services Switcher Pills Bar */
-.srv-chip-btn {
-  cursor: pointer;
-  transition: all 0.15s ease-in-out;
-}
-
-html.light .srv-chip-btn {
-  background-color: #f8fafc !important;
-  color: #475569 !important;
-  border: 1px solid #e2e8f0 !important;
-}
-
-html.light .srv-chip-btn:hover {
-  background-color: #f1f5f9 !important;
-  color: #0f172a !important;
-  border-color: #cbd5e1 !important;
-}
-
-html.light .srv-chip-btn.active {
-  background-color: #0284c7 !important;
-  color: #ffffff !important;
-  border-color: #0284c7 !important;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3) !important;
-}
-
-html.light .srv-chip-btn.active i {
-  color: #ffffff !important;
-}

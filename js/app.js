@@ -109,24 +109,8 @@ const App = {
       }
     });
 
-    // Populate Mobile More Drawer Services List
-    const mobileMoreList = document.getElementById('mobile-more-services-list');
-    if (mobileMoreList) {
-      mobileMoreList.innerHTML = services.map(s => `
-        <a href="#service-${encodeURIComponent(s)}" onclick="Services.openService('${s}'); App.toggleMobileMoreSheet();"
-          class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 text-slate-200 text-xs font-medium">
-          <span class="flex items-center gap-1.5 truncate">
-            <span class="w-1.5 h-1.5 rounded-full bg-brand-400"></span>
-            <span class="truncate">${s}</span>
-          </span>
-          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500 shrink-0"></i>
-        </a>
-      `).join('');
-    }
-
-    // Populate Dedicated Services Picker Sheet & Horizontal Pills Bar
+    // Populate Mobile Services Picker Sheet List (Opened when clicking mobile Services button)
     this.populateServicesPickerList(services);
-    this.populateServicesPillsBar(Services.currentService || services[0]);
 
     if (window.lucide) lucide.createIcons();
   },
@@ -251,31 +235,6 @@ const App = {
             <i data-lucide="chevron-right" class="w-4 h-4 ${isActive ? 'text-brand-400' : 'text-slate-500 group-hover:text-slate-300'}"></i>
           </div>
         </div>
-      `;
-    }).join('');
-
-    if (window.lucide) lucide.createIcons();
-  },
-
-  populateServicesPillsBar(activeService) {
-    const bar = document.getElementById('services-pills-bar');
-    if (!bar) return;
-    const servs = Config.DEFAULT_SERVICES;
-    const active = activeService || (window.Services && Services.currentService) || servs[0];
-
-    bar.innerHTML = servs.map(s => {
-      const meta = (Config.SERVICE_META && Config.SERVICE_META[s]) || { title: s, icon: 'layers' };
-      const isActive = (s === active);
-      return `
-        <button type="button" onclick="Services.openService('${s}')"
-          class="srv-chip-btn px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-            isActive
-              ? 'bg-brand-500 text-white shadow-sm ring-1 ring-brand-400/40 active'
-              : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700/60'
-          }">
-          <i data-lucide="${meta.icon}" class="w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-brand-400'}"></i>
-          <span>${s}</span>
-        </button>
       `;
     }).join('');
 

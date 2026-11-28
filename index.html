@@ -73,7 +73,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/styles.css?v=18">
+  <link rel="stylesheet" href="css/styles.css?v=19">
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased h-screen overflow-hidden flex flex-col selection:bg-brand-600 selection:text-white">
 
@@ -565,17 +565,6 @@
              VIEW 2: DYNAMIC SERVICES VIEW
              ===================================================================== -->
         <section id="view-services" class="hidden space-y-6">
-          <!-- Horizontal Services Switcher Pills Bar -->
-          <div class="flex items-center justify-between gap-3 pb-2 border-b border-slate-800">
-            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 flex-1" id="services-pills-bar">
-              <!-- Dynamically populated via App.populateServicesPillsBar() -->
-            </div>
-            <button type="button" onclick="App.openServicesPicker()" class="shrink-0 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-brand-400 flex items-center gap-1.5 transition shadow-sm cursor-pointer">
-              <i data-lucide="layers" class="w-3.5 h-3.5"></i>
-              <span class="hidden sm:inline">All Services</span>
-            </button>
-          </div>
-
           <!-- Dynamic Header -->
           <div class="p-6 bg-gradient-to-r from-slate-900 to-slate-900/50 border border-slate-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
@@ -1795,14 +1784,6 @@
         </button>
       </div>
 
-      <!-- Fintech Services List -->
-      <div class="space-y-1.5 pt-2">
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">Fintech Services</p>
-        <div id="mobile-more-services-list" class="grid grid-cols-2 gap-2">
-          <!-- Populated dynamically -->
-        </div>
-      </div>
-
       <!-- Quick Controls -->
       <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
         <button onclick="App.toggleTheme()" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200">
@@ -1818,17 +1799,17 @@
   </div>
 
   <!-- =========================================================================
-       5. APPLICATION JAVASCRIPT MODULES (v18 Ultra-Fast SWR Caching & Performance)
+       5. APPLICATION JAVASCRIPT MODULES (v19 Side Panel & Mobile Menu Alignment)
        ========================================================================= -->
-  <script src="js/config.js?v=18"></script>
-  <script src="js/api.js?v=18"></script>
-  <script src="js/auth.js?v=18"></script>
-  <script src="js/dashboard.js?v=18"></script>
-  <script src="js/services.js?v=18"></script>
-  <script src="js/calling.js?v=18"></script>
-  <script src="js/reports.js?v=18"></script>
-  <script src="js/admin.js?v=18"></script>
-  <script src="js/app.js?v=18"></script>
+  <script src="js/config.js?v=19"></script>
+  <script src="js/api.js?v=19"></script>
+  <script src="js/auth.js?v=19"></script>
+  <script src="js/dashboard.js?v=19"></script>
+  <script src="js/services.js?v=19"></script>
+  <script src="js/calling.js?v=19"></script>
+  <script src="js/reports.js?v=19"></script>
+  <script src="js/admin.js?v=19"></script>
+  <script src="js/app.js?v=19"></script>
 
   <!-- PWA Service Worker Registration (Runs over HTTP/HTTPS) -->
   <script>
