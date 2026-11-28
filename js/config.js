@@ -22,7 +22,8 @@ const Config = {
     'B2C',
     'RISLUPI',
     'RISLDMT',
-    'RISLRECHARGE'
+    'RISLRECHARGE',
+    'RISLMOBILEAPP'
   ],
 
   // Visual & Feature Metadata for Services Catalog
@@ -68,6 +69,12 @@ const Config = {
       icon: 'zap',
       badge: 'RISL Bill Pay',
       desc: 'Govt RISL utility bills, electricity & E-Mitra recharge services'
+    },
+    'RISLMOBILEAPP': {
+      title: 'RISL MOBILE APP',
+      icon: 'smartphone',
+      badge: 'RISL App Pay',
+      desc: 'Govt RISL Mobile Application transactions & digital payments'
     }
   },
 
@@ -184,6 +191,7 @@ const Config = {
     let themeClass = 'srv-badge-default';
     if (s.includes('AEPS')) themeClass = 'srv-badge-aeps';
     else if (s === 'B2C' || s.includes('B2C')) themeClass = 'srv-badge-b2c';
+    else if (s.includes('MOBILEAPP') || s.includes('MOBILE_APP') || s.includes('APP')) themeClass = 'srv-badge-rislapp';
     else if (s.includes('UPI')) themeClass = 'srv-badge-upi';
     else if (s.includes('RECHARGE')) themeClass = 'srv-badge-recharge';
     else if (s.includes('DMT')) themeClass = 'srv-badge-dmt';

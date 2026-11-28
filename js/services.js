@@ -18,7 +18,7 @@ const Services = {
     this.currentService = serviceName;
     App.switchView('services');
 
-    // Update mobile bottom nav state
+    // Update bottom nav active state if on mobile
     if (window.App && typeof App.updateMobileBottomNav === 'function') {
       App.updateMobileBottomNav('services');
     }

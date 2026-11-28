@@ -109,7 +109,7 @@ const App = {
       }
     });
 
-    // Populate Mobile Services Picker Sheet List (Opened when clicking mobile Services button)
+    // Populate Dedicated Services Picker Sheet (For mobile navigation)
     this.populateServicesPickerList(services);
 
     if (window.lucide) lucide.createIcons();

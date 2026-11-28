@@ -121,11 +121,12 @@ const Admin = {
   },
 
   getServiceCheckboxesHtml(selectedServices, prefix) {
-    const defaultList = ['ZAPAEPS', 'ZAPUPI', 'ZAPRECHARGE', 'B2C', 'RISLUPI', 'RISLDMT', 'RISLRECHARGE'];
+    const defaultList = ['ZAPAEPS', 'ZAPUPI', 'ZAPRECHARGE', 'B2C', 'RISLUPI', 'RISLDMT', 'RISLRECHARGE', 'RISLMOBILEAPP'];
     let services = (this.configState && this.configState.services && this.configState.services.length >= 6)
       ? [...this.configState.services]
       : defaultList;
     if (!services.includes('B2C')) services.push('B2C');
+    if (!services.includes('RISLMOBILEAPP')) services.push('RISLMOBILEAPP');
 
     const isAll = !selectedServices || selectedServices.length === 0 || selectedServices.includes('ALL');
 

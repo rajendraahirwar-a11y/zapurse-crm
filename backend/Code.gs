@@ -31,6 +31,7 @@ const CONFIG = {
     "RISLUPI",
     "RISLDMT",
     "RISLRECHARGE",
+    "RISLMOBILEAPP",
   ],
 };
 
@@ -1219,6 +1220,7 @@ function getInitialDataHandler(params) {
       if (Array.isArray(parsed) && parsed.length >= 6) {
         services = parsed;
         if (!services.includes("B2C")) services.push("B2C");
+        if (!services.includes("RISLMOBILEAPP")) services.push("RISLMOBILEAPP");
       }
     } catch (e) {}
   }
